@@ -17,15 +17,56 @@ function getClient() {
 const TABLE = "products";
 const COLS = "id,name,brand,price,category,style,imageUrl,productUrl,description";
 
-export async function fetchCatalogForPrompt(style: string, limit = 40) {
+// Map friendly UI style labels to keywords actually stored in the DB `style` column.
+// DB currently uses short lowercase tags like: boho, midcentury, japandi, modern, scandi, industrial, minimalist.
+const STYLE_KEYWORDS: Record<string, string[]> = {
+  "Mid-Century Modern": ["midcentury", "mid-century", "modern"],
+  Minimalist: ["minimalist", "minimal"],
+  Scandinavian: ["scandi", "scandinavian", "nordic"],
+  Industrial: ["industrial"],
+  Bohemian: ["boho", "bohemian"],
+  Japandi: ["japandi", "japanese"],
+};
+
+function keywordsFor(style: string): string[] {
+  return STYLE_KEYWORDS[style] ?? [style.toLowerCase()];
+}
+
+async function queryByStyle<T>(
+  select: string,
+  style: string,
+  limit: number,
+): Promise<T[]> {
   const supabase = getClient();
+  const kws = keywordsFor(style);
+  // Build an OR of ilike filters across all mapped keywords.
+  const orFilter = kws.map((k) => `style.ilike.%${k}%`).join(",");
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id,name,brand,category,style,description")
-    .ilike("style", `%${style}%`)
+    .select(select)
+    .or(orFilter)
     .limit(limit);
-  if (error) throw new Error(`Supabase catalog fetch failed: ${error.message}`);
-  return data ?? [];
+  if (error) throw new Error(`Supabase query failed: ${error.message}`);
+  if (data && data.length > 0) return data as T[];
+
+  // Fallback: if nothing matched, return any products so the AI still has a catalog.
+  const { data: any, error: err2 } = await supabase
+    .from(TABLE)
+    .select(select)
+    .limit(limit);
+  if (err2) throw new Error(`Supabase fallback query failed: ${err2.message}`);
+  return (any ?? []) as T[];
+}
+
+export async function fetchCatalogForPrompt(style: string, limit = 40) {
+  return queryByStyle<{
+    id: string;
+    name: string;
+    brand: string;
+    category: string;
+    style: string;
+    description: string;
+  }>("id,name,brand,category,style,description", style, limit);
 }
 
 export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
@@ -36,18 +77,13 @@ export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
     .select(COLS)
     .in("id", ids);
   if (error) throw new Error(`Supabase products fetch failed: ${error.message}`);
-  // Preserve input ordering
   const map = new Map((data ?? []).map((p) => [p.id, p as Product]));
   return ids.map((id) => map.get(id)).filter(Boolean) as Product[];
 }
 
-export async function fetchFallbackProducts(style: string, limit = 3): Promise<Product[]> {
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select(COLS)
-    .ilike("style", `%${style}%`)
-    .limit(limit);
-  if (error) throw new Error(`Supabase fallback fetch failed: ${error.message}`);
-  return (data ?? []) as Product[];
+export async function fetchFallbackProducts(
+  style: string,
+  limit = 3,
+): Promise<Product[]> {
+  return queryByStyle<Product>(COLS, style, limit);
 }
