@@ -60,7 +60,17 @@ function Home() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setRoomImage(reader.result as string);
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setRoomImage(dataUrl);
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          setAspectRatio(img.naturalWidth / img.naturalHeight);
+        }
+      };
+      img.src = dataUrl;
+    };
     reader.readAsDataURL(file);
   }, []);
 
