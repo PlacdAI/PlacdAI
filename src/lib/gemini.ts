@@ -1,5 +1,5 @@
-// Client-safe re-exports (types only). Real Gemini calls live in gemini.server.ts.
+// Client-safe re-exports. Actual gateway calls live in gemini.server.ts.
 export const GEMINI_MODELS = {
-  chat: "gemini-2.5-flash",
-  image: "gemini-2.5-flash-image",
+  chat: "google/gemini-2.5-flash",
+  image: "google/gemini-3-pro-image",
 } as const;
