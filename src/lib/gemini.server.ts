@@ -1,9 +1,9 @@
-// Direct calls to Google Generative Language API (uses user's personal Gemini key).
-const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+// Lovable AI Gateway calls (uses managed LOVABLE_API_KEY, no external Gemini key needed).
+const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
 function key() {
-  const k = process.env.GEMINI_API_KEY;
-  if (!k) throw new Error("Missing GEMINI_API_KEY. Set it in .env (see .env.example).");
+  const k = process.env.LOVABLE_API_KEY;
+  if (!k) throw new Error("Missing LOVABLE_API_KEY. Enable Lovable AI in project settings.");
   return k;
 }
 
@@ -15,82 +15,128 @@ export interface TextPart {
 }
 export type Part = InlinePart | TextPart;
 
-/** Structured JSON generation. */
+// Convert our internal Part[] into OpenAI-compatible chat content blocks.
+function partsToContent(parts: Part[]) {
+  return parts.map((p) => {
+    if ("text" in p) return { type: "text", text: p.text };
+    return {
+      type: "image_url",
+      image_url: { url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}` },
+    };
+  });
+}
+
+/** Structured JSON generation via Lovable AI Gateway (OpenAI-compatible chat completions). */
 export async function geminiJson<T>(opts: {
   model?: string;
   parts: Part[];
   schema: unknown;
   systemInstruction?: string;
 }): Promise<T> {
-  const model = opts.model ?? "gemini-2.5-flash";
-  const body: Record<string, unknown> = {
-    contents: [{ role: "user", parts: opts.parts }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: opts.schema,
+  const model = opts.model ?? "google/gemini-2.5-flash";
+  const messages: Array<{ role: string; content: unknown }> = [];
+  if (opts.systemInstruction) {
+    messages.push({ role: "system", content: opts.systemInstruction });
+  }
+  messages.push({ role: "user", content: partsToContent(opts.parts) });
+
+  const body = {
+    model,
+    messages,
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "response", strict: true, schema: opts.schema },
     },
   };
-  if (opts.systemInstruction) {
-    body.systemInstruction = { parts: [{ text: opts.systemInstruction }] };
-  }
-  const res = await fetch(`${BASE}/${model}:generateContent?key=${key()}`, {
+
+  const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key()}`,
+    },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Gemini JSON ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    // Retry without strict schema (some models don't support json_schema — fall back to json_object).
+    const fallback = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key()}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!fallback.ok) {
+      throw new Error(`Gateway JSON ${fallback.status}: ${await fallback.text()}`);
+    }
+    const j = (await fallback.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const text = j.choices?.[0]?.message?.content ?? "";
+    if (!text) throw new Error("Gateway returned no JSON text");
+    return JSON.parse(text) as T;
+  }
   const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { message?: { content?: string } }[];
   };
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  if (!text) throw new Error("Gemini returned no JSON text");
+  const text = json.choices?.[0]?.message?.content ?? "";
+  if (!text) throw new Error("Gateway returned no JSON text");
   return JSON.parse(text) as T;
 }
 
-/** Streaming image generation — returns raw upstream SSE body for passthrough. */
+/** Streaming image generation via Lovable AI Gateway — passes SSE body through. */
 export async function geminiImageStream(opts: {
   parts: Part[];
   model?: string;
 }): Promise<Response> {
-  const model = opts.model ?? "gemini-2.5-flash-image";
+  const model = opts.model ?? "google/gemini-3-pro-image";
   const body = {
-    contents: [{ role: "user", parts: opts.parts }],
-    generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+    model,
+    messages: [{ role: "user", content: partsToContent(opts.parts) }],
+    modalities: ["image", "text"],
+    stream: true,
   };
-  return fetch(`${BASE}/${model}:streamGenerateContent?alt=sse&key=${key()}`, {
+  return fetch(`${GATEWAY}/images/generations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key()}`,
+    },
     body: JSON.stringify(body),
   });
 }
 
-/** Non-streaming image edit — returns first image part as data URL. */
+/** Non-streaming image edit via Lovable AI Gateway — returns image as data URL. */
 export async function geminiImageEdit(opts: {
   parts: Part[];
   model?: string;
 }): Promise<string> {
-  const model = opts.model ?? "gemini-2.5-flash-image";
+  const model = opts.model ?? "google/gemini-3-pro-image";
   const body = {
-    contents: [{ role: "user", parts: opts.parts }],
-    generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+    model,
+    messages: [{ role: "user", content: partsToContent(opts.parts) }],
+    modalities: ["image", "text"],
   };
-  const res = await fetch(`${BASE}/${model}:generateContent?key=${key()}`, {
+  const res = await fetch(`${GATEWAY}/images/generations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key()}`,
+    },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Gemini edit ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Gateway edit ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as {
-    candidates?: {
-      content?: {
-        parts?: { inlineData?: { data: string; mimeType: string } }[];
-      };
-    }[];
+    data?: { b64_json?: string }[];
   };
-  const parts = json.candidates?.[0]?.content?.parts ?? [];
-  const img = parts.find((p) => p.inlineData)?.inlineData;
-  if (!img) throw new Error("Gemini edit returned no image");
-  return `data:${img.mimeType};base64,${img.data}`;
+  const b64 = json.data?.[0]?.b64_json;
+  if (!b64) throw new Error("Gateway edit returned no image");
+  return `data:image/png;base64,${b64}`;
 }
 
 /** Fetch a remote image URL and return { mimeType, base64 }. */

@@ -1,6 +1,10 @@
 /**
- * Streams an image from a Gemini SSE endpoint that passes through Google's
- * `alt=sse` responses. Fires `onFrame(dataUrl, isFinal)` as image bytes arrive.
+ * Streams an image from a Lovable AI Gateway SSE passthrough endpoint.
+ * The gateway normalizes provider responses to OpenAI-style events:
+ *   - image_generation.partial_image  (progressive preview frames)
+ *   - image_generation.completed      (final image)
+ *   - error                            (terminal failure)
+ * Fires `onFrame(dataUrl, isFinal)` as image bytes arrive.
  */
 export async function streamImage(
   url: string,
@@ -20,6 +24,8 @@ export async function streamImage(
   const decoder = new TextDecoder();
   let buffer = "";
   let lastDataUrl: string | null = null;
+  let sawCompleted = false;
+  let streamError: string | undefined;
 
   while (true) {
     const { value, done } = await reader.read();
@@ -30,32 +36,49 @@ export async function streamImage(
     while ((idx = buffer.indexOf("\n\n")) !== -1) {
       const chunk = buffer.slice(0, idx);
       buffer = buffer.slice(idx + 2);
-      const line = chunk
-        .split("\n")
-        .filter((l) => l.startsWith("data: "))
-        .map((l) => l.slice(6))
-        .join("");
-      if (!line || line === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(line) as {
-          candidates?: {
-            content?: {
-              parts?: { inlineData?: { data: string; mimeType: string } }[];
-            };
-          }[];
-        };
-        const parts = parsed.candidates?.[0]?.content?.parts ?? [];
-        for (const p of parts) {
-          if (p.inlineData?.data) {
-            lastDataUrl = `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`;
-            onFrame(lastDataUrl, false);
-          }
-        }
-      } catch {
-        // ignore partial frames
+
+      let eventName: string | undefined;
+      const dataLines: string[] = [];
+      for (const line of chunk.split("\n")) {
+        if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+        else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
       }
+      const dataStr = dataLines.join("");
+      if (!dataStr || dataStr === "[DONE]") continue;
+
+      let payload:
+        | {
+            type?: string;
+            b64_json?: string;
+            error?: { message?: string };
+          }
+        | undefined;
+      try {
+        payload = JSON.parse(dataStr);
+      } catch {
+        continue;
+      }
+      if (!payload) continue;
+
+      const type = eventName ?? payload.type;
+      if (type === "error" || payload.type === "error") {
+        streamError = payload.error?.message ?? "Image generation failed";
+        continue;
+      }
+      if (
+        type !== "image_generation.partial_image" &&
+        type !== "image_generation.completed"
+      ) {
+        continue;
+      }
+      if (!payload.b64_json) continue;
+      const isFinal = type === "image_generation.completed";
+      lastDataUrl = `data:image/png;base64,${payload.b64_json}`;
+      onFrame(lastDataUrl, isFinal);
+      if (isFinal) sawCompleted = true;
     }
   }
-  if (lastDataUrl) onFrame(lastDataUrl, true);
+  if (streamError) throw new Error(streamError);
+  if (!sawCompleted && lastDataUrl) onFrame(lastDataUrl, true);
   return lastDataUrl;
 }
