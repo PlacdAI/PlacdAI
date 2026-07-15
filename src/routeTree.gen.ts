@@ -10,33 +10,72 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
+import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
+import { Route as ApiGenerateRoomRouteImport } from './routes/api/generate-room'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
+  id: '/api/swap-product',
+  path: '/api/swap-product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPickProductsRoute = ApiPickProductsRouteImport.update({
+  id: '/api/pick-products',
+  path: '/api/pick-products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGenerateRoomRoute = ApiGenerateRoomRouteImport.update({
+  id: '/api/generate-room',
+  path: '/api/generate-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/swap-product': typeof ApiSwapProductRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/swap-product': typeof ApiSwapProductRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/swap-product': typeof ApiSwapProductRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/generate-room'
+    | '/api/pick-products'
+    | '/api/swap-product'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/generate-room' | '/api/pick-products' | '/api/swap-product'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/generate-room'
+    | '/api/pick-products'
+    | '/api/swap-product'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiGenerateRoomRoute: typeof ApiGenerateRoomRoute
+  ApiPickProductsRoute: typeof ApiPickProductsRoute
+  ApiSwapProductRoute: typeof ApiSwapProductRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +87,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/swap-product': {
+      id: '/api/swap-product'
+      path: '/api/swap-product'
+      fullPath: '/api/swap-product'
+      preLoaderRoute: typeof ApiSwapProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/pick-products': {
+      id: '/api/pick-products'
+      path: '/api/pick-products'
+      fullPath: '/api/pick-products'
+      preLoaderRoute: typeof ApiPickProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/generate-room': {
+      id: '/api/generate-room'
+      path: '/api/generate-room'
+      fullPath: '/api/generate-room'
+      preLoaderRoute: typeof ApiGenerateRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiGenerateRoomRoute: ApiGenerateRoomRoute,
+  ApiPickProductsRoute: ApiPickProductsRoute,
+  ApiSwapProductRoute: ApiSwapProductRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
