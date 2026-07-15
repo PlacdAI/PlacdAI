@@ -63,7 +63,7 @@ export function BeforeAfterSlider({
       <img
         src={after}
         alt={alt}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-contain"
         draggable={false}
       />
       {/* Before (clipped) */}
@@ -80,7 +80,7 @@ export function BeforeAfterSlider({
           <img
             src={before}
             alt="Before"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-contain"
             draggable={false}
           />
         </div>
