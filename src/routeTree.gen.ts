@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
 import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
 import { Route as ApiGenerateRoomRouteImport } from './routes/api/generate-room'
+import { Route as ApiDebugShopLookRouteImport } from './routes/api/debug-shop-look'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,15 +35,22 @@ const ApiGenerateRoomRoute = ApiGenerateRoomRouteImport.update({
   path: '/api/generate-room',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDebugShopLookRoute = ApiDebugShopLookRouteImport.update({
+  id: '/api/debug-shop-look',
+  path: '/api/debug-shop-look',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/swap-product': typeof ApiSwapProductRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/swap-product': typeof ApiSwapProductRoute
@@ -50,6 +58,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/swap-product': typeof ApiSwapProductRoute
@@ -58,14 +67,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/debug-shop-look'
     | '/api/generate-room'
     | '/api/pick-products'
     | '/api/swap-product'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/generate-room' | '/api/pick-products' | '/api/swap-product'
+  to:
+    | '/'
+    | '/api/debug-shop-look'
+    | '/api/generate-room'
+    | '/api/pick-products'
+    | '/api/swap-product'
   id:
     | '__root__'
     | '/'
+    | '/api/debug-shop-look'
     | '/api/generate-room'
     | '/api/pick-products'
     | '/api/swap-product'
@@ -73,6 +89,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiDebugShopLookRoute: typeof ApiDebugShopLookRoute
   ApiGenerateRoomRoute: typeof ApiGenerateRoomRoute
   ApiPickProductsRoute: typeof ApiPickProductsRoute
   ApiSwapProductRoute: typeof ApiSwapProductRoute
@@ -108,11 +125,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGenerateRoomRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/debug-shop-look': {
+      id: '/api/debug-shop-look'
+      path: '/api/debug-shop-look'
+      fullPath: '/api/debug-shop-look'
+      preLoaderRoute: typeof ApiDebugShopLookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiDebugShopLookRoute: ApiDebugShopLookRoute,
   ApiGenerateRoomRoute: ApiGenerateRoomRoute,
   ApiPickProductsRoute: ApiPickProductsRoute,
   ApiSwapProductRoute: ApiSwapProductRoute,
