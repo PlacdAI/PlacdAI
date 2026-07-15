@@ -268,7 +268,7 @@ function Home() {
               <img
                 src={roomImage}
                 alt="Your room"
-                className="h-full w-full object-cover opacity-70"
+                className="h-full w-full object-contain opacity-70"
               />
             ) : busy ? (
               <div className="h-full w-full animate-pulse bg-gradient-to-br from-muted via-accent to-muted" />
