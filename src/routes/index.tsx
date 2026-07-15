@@ -43,6 +43,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [roomImage, setRoomImage] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [style, setStyle] = useState<Style>("Mid-Century Modern");
   const [canvasImage, setCanvasImage] = useState<string | null>(null);
   const [isFinal, setIsFinal] = useState(false);
@@ -59,7 +60,17 @@ function Home() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setRoomImage(reader.result as string);
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setRoomImage(dataUrl);
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          setAspectRatio(img.naturalWidth / img.naturalHeight);
+        }
+      };
+      img.src = dataUrl;
+    };
     reader.readAsDataURL(file);
   }, []);
 
@@ -239,14 +250,17 @@ function Home() {
               </span>
             )}
           </div>
-          <div className="relative aspect-video w-full bg-muted">
+          <div
+            className="relative w-full bg-muted"
+            style={{ aspectRatio: aspectRatio ?? 16 / 9 }}
+          >
             {showSlider ? (
               <BeforeAfterSlider before={roomImage!} after={canvasImage!} />
             ) : canvasImage ? (
               <img
                 src={canvasImage}
                 alt="Generated room"
-                className={`h-full w-full object-cover transition-[filter] duration-700 ${
+                className={`h-full w-full object-contain transition-[filter] duration-700 ${
                   isFinal ? "blur-0" : "blur-2xl"
                 }`}
               />
@@ -254,7 +268,7 @@ function Home() {
               <img
                 src={roomImage}
                 alt="Your room"
-                className="h-full w-full object-cover opacity-70"
+                className="h-full w-full object-contain opacity-70"
               />
             ) : busy ? (
               <div className="h-full w-full animate-pulse bg-gradient-to-br from-muted via-accent to-muted" />
