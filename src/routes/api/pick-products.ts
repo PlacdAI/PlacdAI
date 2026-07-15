@@ -44,14 +44,22 @@ export const Route = createFileRoute("/api/pick-products")({
             },
           });
 
-          let products = await fetchProductsByIds(result.productIds);
+          // Dedupe IDs returned by the model (it sometimes repeats one).
+          const uniqueIds = Array.from(new Set(result.productIds));
+          let products = await fetchProductsByIds(uniqueIds);
+          // Dedupe again defensively by id.
+          const byId = new Map(products.map((p) => [p.id, p]));
+          products = Array.from(byId.values());
           if (products.length < 3) {
-            const filler = await fetchFallbackProducts(style, 3);
-            const seen = new Set(products.map((p) => p.id));
+            const filler = await fetchFallbackProducts(style, 12);
             for (const p of filler) {
-              if (!seen.has(p.id) && products.length < 3) products.push(p);
+              if (!byId.has(p.id) && products.length < 3) {
+                byId.set(p.id, p);
+                products.push(p);
+              }
             }
           }
+          products = products.slice(0, 3);
           return Response.json({ products });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);

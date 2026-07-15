@@ -124,9 +124,7 @@ function Home() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               currentRoomImage: current,
-              productImageUrl: p.imageUrl,
-              productName: p.name,
-              productCategory: p.category,
+              productId: p.id,
             }),
           });
           const j = (await res.json()) as { image?: string; error?: string };
