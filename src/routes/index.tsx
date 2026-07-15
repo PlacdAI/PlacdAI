@@ -260,7 +260,7 @@ function Home() {
               <img
                 src={canvasImage}
                 alt="Generated room"
-                className={`h-full w-full object-cover transition-[filter] duration-700 ${
+                className={`h-full w-full object-contain transition-[filter] duration-700 ${
                   isFinal ? "blur-0" : "blur-2xl"
                 }`}
               />
