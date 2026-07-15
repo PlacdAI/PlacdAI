@@ -43,6 +43,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [roomImage, setRoomImage] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [style, setStyle] = useState<Style>("Mid-Century Modern");
   const [canvasImage, setCanvasImage] = useState<string | null>(null);
   const [isFinal, setIsFinal] = useState(false);
