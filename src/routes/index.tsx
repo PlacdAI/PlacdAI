@@ -250,7 +250,10 @@ function Home() {
               </span>
             )}
           </div>
-          <div className="relative aspect-video w-full bg-muted">
+          <div
+            className="relative w-full bg-muted"
+            style={{ aspectRatio: aspectRatio ?? 16 / 9 }}
+          >
             {showSlider ? (
               <BeforeAfterSlider before={roomImage!} after={canvasImage!} />
             ) : canvasImage ? (
