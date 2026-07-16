@@ -22,7 +22,7 @@ export async function geminiJson<T>(opts: {
   schema: unknown;
   systemInstruction?: string;
 }): Promise<T> {
-  const model = opts.model ?? "gemini-2.5-flash";
+  const model = opts.model ?? "gemini-flash-latest";
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: opts.parts }],
     generationConfig: {
