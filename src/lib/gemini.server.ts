@@ -1,3 +1,17 @@
+// ─────────────────────────────────────────────────────────────
+// Google Gemini — SERVER SIDE ONLY
+//
+// Reads GEMINI_API_KEY from process.env (set it in your `.env`).
+// Get a key at: https://aistudio.google.com/apikey
+//
+// Models used:
+//   • gemini-flash-latest    → structured JSON (picks 3 product IDs)
+//   • gemini-2.5-flash-image → image generation + edits (Nano Banana)
+//
+// To swap models, change the `?? "..."` default in each helper below,
+// or pass { model: "..." } from the caller.
+// ─────────────────────────────────────────────────────────────
+
 // Direct Google Gemini API calls (uses user-provided GEMINI_API_KEY).
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 

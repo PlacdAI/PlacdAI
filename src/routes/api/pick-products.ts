@@ -1,3 +1,5 @@
+// STEP 1 of the pipeline: send the uploaded room + trimmed catalog to Gemini,
+// get back 3 product IDs, return the full product rows for the sidebar.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {

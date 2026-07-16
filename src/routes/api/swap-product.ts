@@ -1,3 +1,6 @@
+// STEP 3 of the pipeline: called 3 times (once per picked product). Fetches
+// the product's real image from Supabase and asks Gemini to swap it into
+// the current room image. Each response is fed back in as the next input.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {

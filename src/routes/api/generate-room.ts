@@ -1,3 +1,5 @@
+// STEP 2 of the pipeline: stream a redesigned version of the uploaded room
+// from Gemini. Response is Server-Sent Events (SSE) parsed by src/lib/streamImage.ts.
 import { createFileRoute } from "@tanstack/react-router";
 import { dataUrlToInline, geminiImageStream } from "@/lib/gemini.server";
 
