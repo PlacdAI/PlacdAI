@@ -1,3 +1,6 @@
+// DEBUG endpoint: mirrors /api/pick-products but returns the raw picked IDs,
+// dedupe stats, and fetched image URLs. Handy for validating the pipeline
+// without running a full generation. POST { roomImage?, style }.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {

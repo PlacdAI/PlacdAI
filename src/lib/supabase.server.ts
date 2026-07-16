@@ -1,3 +1,29 @@
+// ─────────────────────────────────────────────────────────────
+// Supabase — SERVER SIDE ONLY
+//
+// This file is imported by /api/* routes. It uses the service_role key
+// (or falls back to anon), which bypasses Row-Level Security. NEVER import
+// this file from browser code / components — use `src/lib/supabaseClient.ts`
+// for the browser client instead.
+//
+// ── ADDING MORE FURNITURE ────────────────────────────────────
+// Just INSERT more rows into the `products` table below. No code changes
+// needed — the AI filters by `style` at query time.
+//
+// ── ADDING A SECOND TABLE (e.g. "products_2") ────────────────
+// Not recommended, but if you must: change TABLE below into an array and
+// UNION the results in each helper. Rough sketch:
+//
+//   const TABLES = ["products", "products_2"];
+//   const results = await Promise.all(
+//     TABLES.map(t => supabase.from(t).select(COLS).or(orFilter).limit(limit))
+//   );
+//   const data = results.flatMap(r => r.data ?? []);
+//
+// ── ADDING A NEW STYLE ───────────────────────────────────────
+//   1. Add the label to STYLES in src/lib/types.ts
+//   2. Add DB keywords to STYLE_KEYWORDS below
+// ─────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 import type { Product } from "./types";
 
