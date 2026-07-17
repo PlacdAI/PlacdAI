@@ -45,6 +45,7 @@ export async function streamImage(
 
       let payload:
         | {
+            // Direct Gemini shape
             candidates?: {
               content?: {
                 parts?: {
@@ -52,6 +53,9 @@ export async function streamImage(
                 }[];
               };
             }[];
+            // Lovable AI Gateway shape (OpenAI-images events)
+            type?: string;
+            b64_json?: string;
             error?: { message?: string };
           }
         | undefined;
@@ -65,6 +69,16 @@ export async function streamImage(
         throw new Error(payload.error.message ?? "Image generation failed");
       }
 
+      // Gateway path: image_generation.partial_image / .completed
+      if (payload.type && payload.b64_json) {
+        const dataUrl = `data:image/png;base64,${payload.b64_json}`;
+        frames.push(dataUrl);
+        lastDataUrl = dataUrl;
+        onFrame(dataUrl, payload.type === "image_generation.completed");
+        continue;
+      }
+
+      // Direct Gemini path: candidates[].content.parts[].inlineData
       const parts = payload.candidates?.[0]?.content?.parts ?? [];
       for (const p of parts) {
         if (p.inlineData?.data) {
