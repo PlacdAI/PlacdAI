@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { ExternalLink, Sparkles, Upload, Wand2 } from "lucide-react";
+import { ExternalLink, LogOut, Sparkles, Upload, Wand2 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Select,
