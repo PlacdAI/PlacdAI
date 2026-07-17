@@ -32,6 +32,17 @@ Open http://localhost:8080.
 You also duplicate the URL + anon key into `VITE_EXTERNAL_SUPABASE_*` so the
 browser bundle can read them. `.env.example` shows the exact layout.
 
+### ⚠️ One-line switch after exporting from Lovable
+
+While the project runs inside Lovable, image generation goes through the
+**Lovable AI Gateway** (no key setup needed). After you export to VSCode:
+
+1. Open `src/lib/gemini.server.ts`
+2. Change `const USE_LOVABLE_GATEWAY = true;` to `false`
+3. Make sure `GEMINI_API_KEY` is filled in your `.env`
+
+That's it — the app now uses your own Gemini key for everything.
+
 ---
 
 ## The `products` table
