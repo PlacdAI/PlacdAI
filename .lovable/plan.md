@@ -1,62 +1,76 @@
-## Answer to your question
+## Goal
 
-**No, the AI won't automatically pick up a new `products_2` table.** The code is hardcoded to read from a single table (`TABLE = "products"` in `src/lib/supabase.server.ts`). If you add more tables, you have two options:
+Use **Lovable AI Gateway** for image generation/editing while you're building in Lovable (no key setup needed — `LOVABLE_API_KEY` is auto-provisioned). Leave big, obvious `// SWAP FOR VSCODE` comment blocks so when you export, you flip one constant and it goes back to your direct Gemini key.
 
-1. **Recommended: keep one `products` table** and just keep inserting rows into it. Add a `collection` or `source` column if you want to tag which dataset a row came from. The AI already filters by `style`, so more rows = more variety with zero code changes.
-2. **Multiple tables**: requires code changes — every query (`fetchCatalogForPrompt`, `fetchProductsByIds`, `fetchFallbackProducts`) would need to `UNION` across tables, or you'd add a `TABLES = ["products", "products_2"]` array and loop. Messier, slower, and Supabase can't foreign-key or index across them cleanly.
+The JSON pick-products call stays on direct Gemini either way (it's cheap and already works).
 
-I'll set up option 1 as the default and leave a clearly commented hook for option 2 if you ever want it.
+## What changes
 
-## VSCode export readiness
+### 1. `src/lib/gemini.server.ts` — add a gateway path alongside the direct one
 
-Goal: you clone the repo, run 2 commands, paste keys into `.env`, and it runs.
+Add a `USE_LOVABLE_GATEWAY` toggle at the top:
 
-### Changes
+```ts
+// ─────────────────────────────────────────────────────────────
+// 🔧 VSCODE SWAP — flip this to false after export
+// ─────────────────────────────────────────────────────────────
+// true  → uses Lovable AI Gateway (LOVABLE_API_KEY, auto-provisioned in Lovable)
+// false → uses your direct Google Gemini key (GEMINI_API_KEY in .env)
+//
+// In VSCode: set to `false` so it reads your GEMINI_API_KEY from .env.
+// The JSON picker (geminiJson) always uses the direct Gemini key regardless.
+const USE_LOVABLE_GATEWAY = true;
+```
 
-1. **`.env.example`** — rewrite with clear section headers and inline comments explaining:
-   - Where to get each key (Supabase dashboard → Settings → API; Google AI Studio for Gemini)
-   - Which are server-only vs client-visible (`VITE_` prefix)
-   - Which are safe to commit vs must stay secret
-   - Note that `EXTERNAL_SUPABASE_SERVICE_KEY` bypasses RLS — never ship to client
+Rewrite `geminiImageStream` and `geminiImageEdit` so each has two branches:
 
-2. **`README.md`** — add a "Run locally in VSCode" section:
-   ```
-   1. bun install
-   2. cp .env.example .env
-   3. Fill in the 4 keys (links included)
-   4. bun dev → http://localhost:8080
-   ```
-   Plus: how to add more furniture (just INSERT into `products` table), the schema of the `products` table, and a note on the Gemini free-tier limits.
+- **Gateway branch** (`USE_LOVABLE_GATEWAY === true`): POST to `https://ai.gateway.lovable.dev/v1/images/generations` with header `Authorization: Bearer ${LOVABLE_API_KEY}`, model `google/gemini-2.5-flash-image`, body shape `{ messages: [{ role: "user", content: [...] }], modalities: ["image","text"], stream: true }`. Content array carries text + `image_url` parts (data URLs) for the room and product references.
+- **Direct branch** (`USE_LOVABLE_GATEWAY === false`): unchanged — the existing Google `generativelanguage.googleapis.com` call using `GEMINI_API_KEY`.
 
-3. **`src/lib/supabase.server.ts`** — add a top-of-file comment block explaining:
-   - This file talks to Supabase server-side
-   - How to swap the table name or add more tables (with a commented-out multi-table example)
-   - Why service key vs anon key
-   - The `STYLE_KEYWORDS` map — how to add a new style
+Response payloads differ:
+- Gateway streaming returns SSE with `image_generation.partial_image` / `image_generation.completed` events carrying `b64_json`.
+- Direct Gemini streaming returns SSE with `candidates[].content.parts[].inlineData`.
 
-4. **`src/lib/gemini.server.ts`** — add a comment block explaining:
-   - Where `GEMINI_API_KEY` comes from (aistudio.google.com)
-   - Which model does what (`gemini-flash-latest` = JSON picks, `gemini-2.5-flash-image` = room generation/edits)
-   - How to swap models (single constant to change)
+So `src/lib/streamImage.ts` needs to parse **both** shapes. Add branch inside the existing loop: if the parsed event has `type === "image_generation.partial_image"` or `"completed"`, read `b64_json`; else fall back to the existing `candidates` parser. This keeps one client parser that works with either backend — no route changes needed.
 
-5. **`src/lib/supabaseClient.ts`** — add a comment explaining the `VITE_` prefix requirement and the friendly missing-env error.
+For `geminiImageEdit` (non-streaming, used by swap-product):
+- Gateway: same endpoint without `stream: true`, read `data[0].b64_json`.
+- Direct: unchanged.
 
-6. **`src/routes/api/*.ts`** (the 4 API routes) — add a one-line header comment on each explaining what it does and what it calls, so you can navigate the pipeline.
+Both branches return the same `data:image/png;base64,...` string, so callers (`swap-product.ts`, `generate-room.ts`) need zero changes.
 
-7. **`.env.example` → `.env` note**: confirm `.env` is in `.gitignore` (it already is via the default Vite gitignore, but I'll double-check).
+### 2. `.env.example` — document both keys
 
-### Not changing
+Add a section explaining:
 
-- No logic changes to the pipeline — it already works.
-- No new dependencies.
-- Not touching the deployed secrets — those stay in Lovable Cloud for the hosted preview.
+```
+# ── Image generation backend ─────────────────────────────────
+# In Lovable: LOVABLE_API_KEY is auto-provisioned, nothing to do.
+# In VSCode:  set USE_LOVABLE_GATEWAY = false in src/lib/gemini.server.ts
+#             and make sure GEMINI_API_KEY below is filled in.
+# GEMINI_API_KEY is also always used for the product-picker JSON call.
+```
 
-### After you export
+Keep `GEMINI_API_KEY` as-is (still required for the picker).
 
-You'll need to paste these 4 values into `.env`:
-- `EXTERNAL_SUPABASE_URL`
-- `EXTERNAL_SUPABASE_ANON_KEY` (+ `VITE_` copy)
-- `EXTERNAL_SUPABASE_SERVICE_KEY`
-- `GEMINI_API_KEY`
+### 3. `README.md` — one-paragraph "Moving to VSCode" note
 
-The `.env.example` will tell you exactly where each one lives in each dashboard.
+Add under the existing "Run locally in VSCode" section:
+
+> **One-line switch after export:** open `src/lib/gemini.server.ts`, change `USE_LOVABLE_GATEWAY = true` to `false`. That's it — the app now uses your own `GEMINI_API_KEY` for everything.
+
+### 4. Provision `LOVABLE_API_KEY`
+
+Call the ai_gateway create tool to make sure the key exists in this project (no-op if already there).
+
+## What does NOT change
+
+- `src/routes/api/generate-room.ts`, `swap-product.ts`, `pick-products.ts` — untouched (same helper signatures).
+- `src/lib/supabase.server.ts`, product pipeline, UI — untouched.
+- Product-picker JSON (`geminiJson`) — stays on direct Gemini key, since it's a cheap text call and the gateway's chat endpoint would need a different body shape. One less thing to swap.
+
+## Result
+
+- **In Lovable now:** image gen works via `LOVABLE_API_KEY` (already provisioned), you don't need to configure anything.
+- **In VSCode after export:** flip one boolean, fill in `GEMINI_API_KEY`, done.
+- Big comment banners at every swap point so it's impossible to miss.
