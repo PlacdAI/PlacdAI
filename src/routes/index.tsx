@@ -180,7 +180,17 @@ function Home() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <Toaster richColors position="top-center" />
 
-      <header className="mx-auto max-w-5xl px-6 pt-16 pb-10 text-center">
+      {/* Top bar with user email + logout */}
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-6">
+        <span className="text-xs text-muted-foreground">
+          {user?.email ?? ""}
+        </span>
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" /> Log out
+        </Button>
+      </div>
+
+      <header className="mx-auto max-w-5xl px-6 pt-10 pb-10 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" /> AI Interior Design
         </div>
@@ -195,6 +205,7 @@ function Home() {
           real furniture you can buy right now.
         </p>
       </header>
+
 
       <main className="mx-auto max-w-5xl space-y-6 px-6 pb-24">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
