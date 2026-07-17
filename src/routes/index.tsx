@@ -43,6 +43,14 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
+
+  // Protected route: redirect logged-out users to /login.
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/login" });
+  }, [loading, user, navigate]);
+
   const [roomImage, setRoomImage] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [style, setStyle] = useState<Style>("Mid-Century Modern");
@@ -53,6 +61,12 @@ function Home() {
   const [busy, setBusy] = useState(false);
   const [statusText, setStatusText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate({ to: "/login" });
+  };
+
 
   const onFile = useCallback((file: File | undefined) => {
     if (!file) return;
