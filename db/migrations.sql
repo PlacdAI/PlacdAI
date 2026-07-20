@@ -4,9 +4,46 @@
 -- a public storage bucket named 'gallery' (already created).
 -- ─────────────────────────────────────────────────────────────
 
+-- 0. Profiles table + auto-insert-on-signup trigger (idempotent)
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text,
+  full_name text,
+  avatar_url text,
+  preferred_style text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+grant select, insert, update, delete on public.profiles to authenticated;
+grant all on public.profiles to service_role;
+alter table public.profiles enable row level security;
+drop policy if exists "profiles: read own" on public.profiles;
+create policy "profiles: read own" on public.profiles
+  for select to authenticated using (auth.uid() = id);
+drop policy if exists "profiles: update own" on public.profiles;
+create policy "profiles: update own" on public.profiles
+  for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+drop policy if exists "profiles: insert own" on public.profiles;
+create policy "profiles: insert own" on public.profiles
+  for insert to authenticated with check (auth.uid() = id);
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, username, full_name)
+  values (new.id, new.raw_user_meta_data ->> 'username', new.raw_user_meta_data ->> 'full_name')
+  on conflict (id) do nothing;
+  return new;
+end; $$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
 -- 1. Add credits column to profiles (default 3)
 alter table public.profiles
   add column if not exists credits integer not null default 3;
+
 
 -- 2. Atomic credit consumer (returns remaining, -1 if insufficient)
 create or replace function public.consume_credit(_user_id uuid)
