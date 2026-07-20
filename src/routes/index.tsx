@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { ExternalLink, LogOut, Sparkles, Upload, Wand2 } from "lucide-react";
+import { ExternalLink, Sparkles, Upload, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
+import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -44,7 +46,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, isDevBypass } = useAuth();
 
   // Protected route: redirect logged-out users to /login.
   useEffect(() => {
@@ -62,10 +64,6 @@ function Home() {
   const [statusText, setStatusText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate({ to: "/login" });
-  };
 
 
   const onFile = useCallback((file: File | undefined) => {
@@ -94,12 +92,32 @@ function Home() {
       toast.error("Upload a room photo first.");
       return;
     }
+    // Consume 1 credit up-front (dev-bypass users skip billing).
+    if (!isDevBypass) {
+      try {
+        const r = await apiFetch("/api/consume-credit", { method: "POST" });
+        if (r.status === 402) {
+          toast.error("Out of credits — pick a pack to continue.");
+          navigate({ to: "/buy-credits" });
+          return;
+        }
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          toast.error(j.error || "Could not start generation.");
+          return;
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+        return;
+      }
+    }
     setBusy(true);
     setCanvasImage(null);
     setIsFinal(false);
     setProducts([]);
     setLoadingProducts(true);
     setStatusText("Picking products…");
+
 
     const pickPromise = fetch("/api/pick-products", {
       method: "POST",
@@ -169,28 +187,36 @@ function Home() {
       setIsFinal(true);
     }
 
+    // Save the final image to the user's gallery (72h TTL, FIFO capped at 20).
+    const savedImage = finalRoom
+      ? (canvasImage && isFinal ? canvasImage : null) ?? finalRoom
+      : null;
+    if (savedImage && !isDevBypass) {
+      try {
+        await apiFetch("/api/save-generation", {
+          method: "POST",
+          body: JSON.stringify({ image: savedImage, style }),
+        });
+      } catch {
+        /* non-fatal */
+      }
+    }
+
     setStatusText("");
     setBusy(false);
     if (finalRoom) toast.success("Your room is ready — shop the look!");
   };
+
 
   const showSlider = !!(roomImage && canvasImage && isFinal);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <Toaster richColors position="top-center" />
-
-      {/* Top bar with user email + logout */}
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-6">
-        <span className="text-xs text-muted-foreground">
-          {user?.email ?? ""}
-        </span>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" /> Log out
-        </Button>
-      </div>
+      <AppNav />
 
       <header className="mx-auto max-w-5xl px-6 pt-10 pb-10 text-center">
+
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" /> AI Interior Design
         </div>

@@ -10,15 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as BuyCreditsRouteImport } from './routes/buy-credits'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
+import { Route as ApiSaveGenerationRouteImport } from './routes/api/save-generation'
 import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
+import { Route as ApiMeRouteImport } from './routes/api/me'
+import { Route as ApiListGenerationsRouteImport } from './routes/api/list-generations'
 import { Route as ApiGenerateRoomRouteImport } from './routes/api/generate-room'
 import { Route as ApiDebugShopLookRouteImport } from './routes/api/debug-shop-look'
+import { Route as ApiCreateCheckoutRouteImport } from './routes/api/create-checkout'
+import { Route as ApiConsumeCreditRouteImport } from './routes/api/consume-credit'
+import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuyCreditsRoute = BuyCreditsRouteImport.update({
+  id: '/buy-credits',
+  path: '/buy-credits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -31,9 +49,24 @@ const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
   path: '/api/swap-product',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSaveGenerationRoute = ApiSaveGenerationRouteImport.update({
+  id: '/api/save-generation',
+  path: '/api/save-generation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPickProductsRoute = ApiPickProductsRouteImport.update({
   id: '/api/pick-products',
   path: '/api/pick-products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeRoute = ApiMeRouteImport.update({
+  id: '/api/me',
+  path: '/api/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiListGenerationsRoute = ApiListGenerationsRouteImport.update({
+  id: '/api/list-generations',
+  path: '/api/list-generations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGenerateRoomRoute = ApiGenerateRoomRouteImport.update({
@@ -46,66 +79,137 @@ const ApiDebugShopLookRoute = ApiDebugShopLookRouteImport.update({
   path: '/api/debug-shop-look',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCreateCheckoutRoute = ApiCreateCheckoutRouteImport.update({
+  id: '/api/create-checkout',
+  path: '/api/create-checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConsumeCreditRoute = ApiConsumeCreditRouteImport.update({
+  id: '/api/consume-credit',
+  path: '/api/consume-credit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
+  id: '/api/public/stripe-webhook',
+  path: '/api/public/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/buy-credits': typeof BuyCreditsRoute
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/api/consume-credit': typeof ApiConsumeCreditRoute
+  '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/list-generations': typeof ApiListGenerationsRoute
+  '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/buy-credits': typeof BuyCreditsRoute
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/api/consume-credit': typeof ApiConsumeCreditRoute
+  '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/list-generations': typeof ApiListGenerationsRoute
+  '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/buy-credits': typeof BuyCreditsRoute
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/api/consume-credit': typeof ApiConsumeCreditRoute
+  '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
   '/api/generate-room': typeof ApiGenerateRoomRoute
+  '/api/list-generations': typeof ApiListGenerationsRoute
+  '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
+  '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/buy-credits'
+    | '/gallery'
     | '/login'
+    | '/api/consume-credit'
+    | '/api/create-checkout'
     | '/api/debug-shop-look'
     | '/api/generate-room'
+    | '/api/list-generations'
+    | '/api/me'
     | '/api/pick-products'
+    | '/api/save-generation'
     | '/api/swap-product'
+    | '/api/public/stripe-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/buy-credits'
+    | '/gallery'
     | '/login'
+    | '/api/consume-credit'
+    | '/api/create-checkout'
     | '/api/debug-shop-look'
     | '/api/generate-room'
+    | '/api/list-generations'
+    | '/api/me'
     | '/api/pick-products'
+    | '/api/save-generation'
     | '/api/swap-product'
+    | '/api/public/stripe-webhook'
   id:
     | '__root__'
     | '/'
+    | '/buy-credits'
+    | '/gallery'
     | '/login'
+    | '/api/consume-credit'
+    | '/api/create-checkout'
     | '/api/debug-shop-look'
     | '/api/generate-room'
+    | '/api/list-generations'
+    | '/api/me'
     | '/api/pick-products'
+    | '/api/save-generation'
     | '/api/swap-product'
+    | '/api/public/stripe-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BuyCreditsRoute: typeof BuyCreditsRoute
+  GalleryRoute: typeof GalleryRoute
   LoginRoute: typeof LoginRoute
+  ApiConsumeCreditRoute: typeof ApiConsumeCreditRoute
+  ApiCreateCheckoutRoute: typeof ApiCreateCheckoutRoute
   ApiDebugShopLookRoute: typeof ApiDebugShopLookRoute
   ApiGenerateRoomRoute: typeof ApiGenerateRoomRoute
+  ApiListGenerationsRoute: typeof ApiListGenerationsRoute
+  ApiMeRoute: typeof ApiMeRoute
   ApiPickProductsRoute: typeof ApiPickProductsRoute
+  ApiSaveGenerationRoute: typeof ApiSaveGenerationRoute
   ApiSwapProductRoute: typeof ApiSwapProductRoute
+  ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -115,6 +219,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buy-credits': {
+      id: '/buy-credits'
+      path: '/buy-credits'
+      fullPath: '/buy-credits'
+      preLoaderRoute: typeof BuyCreditsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -131,11 +249,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSwapProductRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/save-generation': {
+      id: '/api/save-generation'
+      path: '/api/save-generation'
+      fullPath: '/api/save-generation'
+      preLoaderRoute: typeof ApiSaveGenerationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pick-products': {
       id: '/api/pick-products'
       path: '/api/pick-products'
       fullPath: '/api/pick-products'
       preLoaderRoute: typeof ApiPickProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me': {
+      id: '/api/me'
+      path: '/api/me'
+      fullPath: '/api/me'
+      preLoaderRoute: typeof ApiMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/list-generations': {
+      id: '/api/list-generations'
+      path: '/api/list-generations'
+      fullPath: '/api/list-generations'
+      preLoaderRoute: typeof ApiListGenerationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/generate-room': {
@@ -152,27 +291,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDebugShopLookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/create-checkout': {
+      id: '/api/create-checkout'
+      path: '/api/create-checkout'
+      fullPath: '/api/create-checkout'
+      preLoaderRoute: typeof ApiCreateCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/consume-credit': {
+      id: '/api/consume-credit'
+      path: '/api/consume-credit'
+      fullPath: '/api/consume-credit'
+      preLoaderRoute: typeof ApiConsumeCreditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/stripe-webhook': {
+      id: '/api/public/stripe-webhook'
+      path: '/api/public/stripe-webhook'
+      fullPath: '/api/public/stripe-webhook'
+      preLoaderRoute: typeof ApiPublicStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BuyCreditsRoute: BuyCreditsRoute,
+  GalleryRoute: GalleryRoute,
   LoginRoute: LoginRoute,
+  ApiConsumeCreditRoute: ApiConsumeCreditRoute,
+  ApiCreateCheckoutRoute: ApiCreateCheckoutRoute,
   ApiDebugShopLookRoute: ApiDebugShopLookRoute,
   ApiGenerateRoomRoute: ApiGenerateRoomRoute,
+  ApiListGenerationsRoute: ApiListGenerationsRoute,
+  ApiMeRoute: ApiMeRoute,
   ApiPickProductsRoute: ApiPickProductsRoute,
+  ApiSaveGenerationRoute: ApiSaveGenerationRoute,
   ApiSwapProductRoute: ApiSwapProductRoute,
+  ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
