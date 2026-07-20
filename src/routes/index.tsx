@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { ExternalLink, LogOut, Sparkles, Upload, Wand2 } from "lucide-react";
+import { ExternalLink, Sparkles, Upload, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
+import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -44,7 +46,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, isDevBypass } = useAuth();
 
   // Protected route: redirect logged-out users to /login.
   useEffect(() => {
@@ -62,10 +64,6 @@ function Home() {
   const [statusText, setStatusText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate({ to: "/login" });
-  };
 
 
   const onFile = useCallback((file: File | undefined) => {
