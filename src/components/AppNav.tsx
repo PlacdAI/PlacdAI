@@ -33,35 +33,34 @@ export function AppNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
+        <Link to="/dashboard" className="flex shrink-0 items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" /> PlacdAI
         </Link>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-1 sm:gap-2">
           <Link
             to="/gallery"
-            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground sm:px-3"
           >
             <span className="inline-flex items-center gap-1.5">
-              <GalleryHorizontal className="h-4 w-4" /> Gallery
+              <GalleryHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">Gallery</span>
             </span>
           </Link>
           <Link
             to="/buy-credits"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-medium hover:bg-accent sm:px-3"
             title="Buy more credits"
           >
-            <Coins className="h-3.5 w-3.5 text-yellow-500" />
-            🪙{" "}
-            {isDevBypass
-              ? "∞"
-              : credits === null
-                ? "…"
-                : credits}{" "}
-            Credits
+            <Coins className="h-3.5 w-3.5 text-primary" />
+            <span>
+              {isDevBypass ? "∞" : credits === null ? "…" : credits}
+            </span>
+            <span className="hidden sm:inline">Credits</span>
           </Link>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="mr-1.5 h-4 w-4" /> Log out
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="px-2 sm:px-3">
+            <LogOut className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Log out</span>
           </Button>
         </nav>
       </div>
