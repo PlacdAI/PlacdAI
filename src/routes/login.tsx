@@ -46,9 +46,9 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Already signed in? Go home.
+  // Already signed in? Go to dashboard.
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
+    if (!loading && user) navigate({ to: "/dashboard" });
   }, [loading, user, navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -63,16 +63,16 @@ function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate({ to: "/" });
+        navigate({ to: "/dashboard" });
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: window.location.origin + "/dashboard" },
         });
         if (error) throw error;
         toast.success("Account created — check your email if confirmation is required.");
-        navigate({ to: "/" });
+        navigate({ to: "/dashboard" });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -85,7 +85,7 @@ function LoginPage() {
   const skipLogin = () => {
     window.localStorage.setItem(DEV_BYPASS_KEY, "1");
     toast.success("Dev bypass enabled.");
-    window.location.href = "/";
+    window.location.href = "/dashboard";
   };
 
   return (
