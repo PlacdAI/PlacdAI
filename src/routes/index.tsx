@@ -1,37 +1,28 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { toast, Toaster } from "sonner";
-import { ExternalLink, Sparkles, Upload, Wand2 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
-import { apiFetch } from "@/lib/apiFetch";
-import { AppNav } from "@/components/AppNav";
-import { Button } from "@/components/ui/button";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { STYLES, type Product, type Style } from "@/lib/types";
-import { streamImage } from "@/lib/streamImage";
-import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
-
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
+  ArrowRight,
+  Check,
+  ShoppingBag,
+  Sparkles,
+  Upload,
+  Wand2,
+  Zap,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
+import heroImage from "@/assets/hero-before-after.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PlacdAI — Shop the AI Look" },
+      { title: "PlacdAI — Redesign Any Room With AI in Seconds" },
       {
         name: "description",
         content:
-          "Upload a photo of your room, pick a style, and PlacdAI redesigns it with real furniture you can shop instantly.",
+          "Upload a photo of your room and let AI redesign it in any style — then shop the real furniture in one click. Free to try.",
       },
-      { property: "og:title", content: "PlacdAI — Shop the AI Look" },
+      { property: "og:title", content: "PlacdAI — Redesign Any Room With AI" },
       {
         property: "og:description",
         content:
@@ -41,367 +32,297 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Home,
+  component: Landing,
 });
 
-function Home() {
-  const navigate = useNavigate();
-  const { user, loading, isDevBypass } = useAuth();
+const STYLE_TAGS = [
+  "Modern",
+  "Mid-Century",
+  "Scandinavian",
+  "Bohemian",
+  "Industrial",
+  "Minimalist",
+  "Coastal",
+  "Farmhouse",
+];
 
-  // Protected route: redirect logged-out users to /login.
+function Landing() {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // If already logged in, skip the marketing page.
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
+    if (!loading && user) navigate({ to: "/dashboard" });
   }, [loading, user, navigate]);
 
-  const [roomImage, setRoomImage] = useState<string | null>(null);
-  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
-  const [style, setStyle] = useState<Style>("Mid-Century Modern");
-  const [canvasImage, setCanvasImage] = useState<string | null>(null);
-  const [isFinal, setIsFinal] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [statusText, setStatusText] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-
-
-  const onFile = useCallback((file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setRoomImage(dataUrl);
-      const img = new Image();
-      img.onload = () => {
-        if (img.naturalWidth && img.naturalHeight) {
-          setAspectRatio(img.naturalWidth / img.naturalHeight);
-        }
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  }, []);
-
-  const generate = async () => {
-    if (!roomImage) {
-      toast.error("Upload a room photo first.");
-      return;
-    }
-    // Consume 1 credit up-front (dev-bypass users skip billing).
-    if (!isDevBypass) {
-      try {
-        const r = await apiFetch("/api/consume-credit", { method: "POST" });
-        if (r.status === 402) {
-          toast.error("Out of credits — pick a pack to continue.");
-          navigate({ to: "/buy-credits" });
-          return;
-        }
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          toast.error(j.error || "Could not start generation.");
-          return;
-        }
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
-        return;
-      }
-    }
-    setBusy(true);
-    setCanvasImage(null);
-    setIsFinal(false);
-    setProducts([]);
-    setLoadingProducts(true);
-    setStatusText("Picking products…");
-
-
-    const pickPromise = fetch("/api/pick-products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomImage, style }),
-    })
-      .then(async (r) => {
-        const j = (await r.json()) as { products?: Product[]; error?: string };
-        if (j.error) throw new Error(j.error);
-        return j.products ?? [];
-      })
-      .then((picked) => {
-        setProducts(picked);
-        setLoadingProducts(false);
-        return picked;
-      })
-      .catch((e: Error) => {
-        setLoadingProducts(false);
-        toast.error(`Product pick failed: ${e.message}`);
-        return [] as Product[];
-      });
-
-    setStatusText("Redesigning your room…");
-    let finalRoom: string | null = null;
-    try {
-      finalRoom = await streamImage(
-        "/api/generate-room",
-        { roomImage, style },
-        (dataUrl, final) => {
-          setCanvasImage(dataUrl);
-          if (final) setIsFinal(true);
-        },
-      );
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error(`Room generation failed: ${msg}`);
-    }
-
-    const picked = await pickPromise;
-
-    if (finalRoom && picked.length > 0) {
-      let current = finalRoom;
-      for (let i = 0; i < picked.length; i++) {
-        const p = picked[i];
-        setStatusText(`Placing ${p.name} (${i + 1}/${picked.length})…`);
-        setIsFinal(false);
-        try {
-          const res = await fetch("/api/swap-product", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              currentRoomImage: current,
-              productId: p.id,
-            }),
-          });
-          const j = (await res.json()) as { image?: string; error?: string };
-          if (j.error) throw new Error(j.error);
-          if (j.image) {
-            current = j.image;
-            setCanvasImage(current);
-          }
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          toast.error(`Couldn't place ${p.name}: ${msg}`);
-        }
-      }
-      setIsFinal(true);
-    }
-
-    // Save the final image to the user's gallery (72h TTL, FIFO capped at 20).
-    const savedImage = finalRoom
-      ? (canvasImage && isFinal ? canvasImage : null) ?? finalRoom
-      : null;
-    if (savedImage && !isDevBypass) {
-      try {
-        await apiFetch("/api/save-generation", {
-          method: "POST",
-          body: JSON.stringify({ image: savedImage, style }),
-        });
-      } catch {
-        /* non-fatal */
-      }
-    }
-
-    setStatusText("");
-    setBusy(false);
-    if (finalRoom) toast.success("Your room is ready — shop the look!");
-  };
-
-
-  const showSlider = !!(roomImage && canvasImage && isFinal);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <Toaster richColors position="top-center" />
-      <AppNav />
-
-      <header className="mx-auto max-w-5xl px-6 pt-10 pb-10 text-center">
-
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-          <Sparkles className="h-3 w-3" /> AI Interior Design
+    <div className="min-h-screen bg-background text-foreground">
+      {/* ── Top nav ─────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+          <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
+            <Sparkles className="h-4 w-4 text-primary" />
+            PlacdAI
+          </Link>
+          <nav className="flex items-center gap-1 sm:gap-3">
+            <a
+              href="#how"
+              className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground sm:inline-flex"
+            >
+              How it works
+            </a>
+            <a
+              href="#styles"
+              className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground sm:inline-flex"
+            >
+              Styles
+            </a>
+            <Link
+              to="/login"
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Log in
+            </Link>
+            <Button asChild size="sm">
+              <Link to="/login">
+                Get started
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+          </nav>
         </div>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-          PlacdAI —{" "}
-          <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Shop the AI Look
-          </span>
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground">
-          Upload your empty room, pick a style, and watch AI redesign it with
-          real furniture you can buy right now.
-        </p>
       </header>
 
-
-      <main className="mx-auto max-w-5xl space-y-6 px-6 pb-24">
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto]">
-            <div>
-              <label className="mb-2 block text-xs font-medium text-muted-foreground">
-                Room photo
-              </label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onFile(e.target.files?.[0])}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-foreground transition hover:bg-accent"
-              >
-                <Upload className="h-4 w-4" />
-                {roomImage ? "Change photo" : "Upload room photo"}
-              </button>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-medium text-muted-foreground">
-                Style
-              </label>
-              <Select
-                value={style}
-                onValueChange={(v) => setStyle(v as Style)}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                onClick={generate}
-                disabled={busy || !roomImage}
-                className="h-10 w-full sm:w-auto"
-              >
-                <Wand2 className="mr-2 h-4 w-4" />
-                {busy ? "Working…" : "Generate Design"}
-              </Button>
-            </div>
+      {/* ── Hero ─────────────────────────────────────────── */}
+      <section className="relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-60"
+          style={{
+            background:
+              "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.18), transparent 70%)",
+          }}
+        />
+        <div className="mx-auto max-w-6xl px-4 pt-14 pb-10 text-center sm:px-6 sm:pt-20 sm:pb-16">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-primary" />
+            AI-powered interior design
           </div>
-        </section>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              {showSlider ? "Before / After" : "AI Canvas"}
+          <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
+            Redesign any room with AI —{" "}
+            <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              then shop the look.
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+            Upload a photo of your room, pick a style, and watch PlacdAI
+            reimagine it with real furniture you can buy in one click.
+          </p>
+
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="w-full sm:w-auto">
+              <Link to="/login">
+                Redesign my room
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <a href="#how">See how it works</a>
+            </Button>
+          </div>
+
+          <p className="mt-4 text-xs text-muted-foreground">
+            3 free redesigns · No credit card required
+          </p>
+
+          {/* Hero image */}
+          <div className="mx-auto mt-10 max-w-5xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/10 sm:mt-14">
+            <img
+              src={heroImage}
+              alt="Before and after AI room redesign"
+              width={1600}
+              height={1000}
+              className="h-auto w-full"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ─────────────────────────────────── */}
+      <section id="how" className="border-t border-border/60 bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              From empty room to dream space in 3 steps
             </h2>
-            {statusText && (
-              <span className="animate-pulse text-xs text-muted-foreground">
-                {statusText}
-              </span>
-            )}
+            <p className="mt-3 text-muted-foreground">
+              No designer, no measuring, no guesswork.
+            </p>
           </div>
-          <div
-            className="relative w-full bg-muted"
-            style={{ aspectRatio: aspectRatio ?? 16 / 9 }}
-          >
-            {showSlider ? (
-              <BeforeAfterSlider before={roomImage!} after={canvasImage!} />
-            ) : canvasImage ? (
-              <img
-                src={canvasImage}
-                alt="Generated room"
-                className={`h-full w-full object-contain transition-[filter] duration-700 ${
-                  isFinal ? "blur-0" : "blur-2xl"
-                }`}
-              />
-            ) : roomImage ? (
-              <img
-                src={roomImage}
-                alt="Your room"
-                className="h-full w-full object-contain opacity-70"
-              />
-            ) : busy ? (
-              <div className="h-full w-full animate-pulse bg-gradient-to-br from-muted via-accent to-muted" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                Your redesigned room will appear here.
-              </div>
-            )}
 
-            {/* Shop the look — overlaid inside the image */}
-            {(loadingProducts || products.length > 0) && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                <div className="pointer-events-auto rounded-xl border border-white/10 bg-black/55 p-2 backdrop-blur-md sm:p-3">
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-white/90">
-                      Shop the Look
-                    </span>
-                    <span className="text-[10px] text-white/60">
-                      {products.length > 0 ? `${products.length} items` : "Loading…"}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {loadingProducts && products.length === 0
-                      ? Array.from({ length: 3 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="h-14 animate-pulse rounded-lg bg-white/10"
-                          />
-                        ))
-                      : products.map((p, i) => (
-                          <OverlayProductCard key={p.id} product={p} index={i + 1} />
-                        ))}
-                  </div>
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {[
+              {
+                icon: Upload,
+                title: "Upload your room",
+                desc: "Snap a photo of your empty or existing room — any angle works.",
+              },
+              {
+                icon: Wand2,
+                title: "Pick a style",
+                desc: "Choose from Modern, Boho, Scandinavian, and dozens more.",
+              },
+              {
+                icon: ShoppingBag,
+                title: "Shop the look",
+                desc: "Every piece in your new room links to a real product you can buy.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+              >
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-semibold">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Styles ───────────────────────────────────────── */}
+      <section id="styles" className="border-t border-border/60">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              A style for every space
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Explore dozens of interior styles, all rendered in seconds.
+            </p>
+          </div>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-2 sm:gap-3">
+            {STYLE_TAGS.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Why PlacdAI ──────────────────────────────────── */}
+      <section className="border-t border-border/60 bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+          <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-2">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Every item is real. Every item is shoppable.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Other AI room generators create beautiful pictures you can't
+                actually recreate. PlacdAI matches every sofa, lamp, and rug in
+                your redesign to a real product from our catalog.
+              </p>
+              <ul className="mt-6 space-y-3 text-sm">
+                {[
+                  "Instant, photorealistic redesigns",
+                  "Real furniture with real prices",
+                  "Before-and-after slider to compare",
+                  "Save and download your favorites",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8">
+                <Button asChild size="lg">
+                  <Link to="/login">
+                    Start free
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Zap className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Under 30 seconds</p>
+                  <p className="text-sm text-muted-foreground">
+                    From upload to fully redesigned room.
+                  </p>
                 </div>
               </div>
-            )}
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <Stat value="500k+" label="Rooms redesigned" />
+                <Stat value="40+" label="Design styles" />
+                <Stat value="10k+" label="Shoppable products" />
+                <Stat value="4.9★" label="Average rating" />
+              </div>
+            </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
+
+      {/* ── CTA ──────────────────────────────────────────── */}
+      <section className="border-t border-border/60">
+        <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-24">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            Your dream room is one photo away.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+            Try PlacdAI free. 3 redesigns on us — no credit card needed.
+          </p>
+          <div className="mt-8">
+            <Button asChild size="lg">
+              <Link to="/login">
+                Get started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────── */}
+      <footer className="border-t border-border/60">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:px-6">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <span>© {new Date().getFullYear()} PlacdAI</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="hover:text-foreground">
+              Log in
+            </Link>
+            <a href="#how" className="hover:text-foreground">
+              How it works
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
 
-function OverlayProductCard({
-  product,
-  index,
-}: {
-  product: Product;
-  index: number;
-}) {
+function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <a
-      href={product.productUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex items-center gap-2 rounded-lg bg-white/95 p-2 text-foreground shadow-sm transition hover:bg-white"
-    >
-      <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md bg-muted">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="h-full w-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              "https://placehold.co/96x96?text=%20";
-          }}
-        />
-        <span className="absolute left-0 top-0 flex h-4 w-4 items-center justify-center rounded-br-md bg-primary text-[10px] font-bold text-primary-foreground">
-          {index}
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">{product.name}</p>
-        <p className="truncate text-[10px] text-muted-foreground">
-          {product.brand}
-        </p>
-        <p className="text-xs font-semibold">
-          {currency.format(Number(product.price) || 0)}
-        </p>
-      </div>
-      <ExternalLink className="h-3 w-3 flex-shrink-0 text-muted-foreground transition group-hover:text-foreground" />
-    </a>
+    <div className="rounded-xl border border-border/60 bg-background p-4">
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+    </div>
   );
 }
