@@ -12,6 +12,9 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
+import { AuthGateProvider } from "../components/auth-gate";
+import { CreditsGateProvider } from "../components/credits-gate";
+import placdaiFavicon from "../assets/trimmy-PlacdAI-logo-official.png";
 
 function NotFoundComponent() {
   return (
@@ -92,7 +95,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // Imported (not a public/ path) so Vite bundles + hashes it and
+      // resolves the real asset URL — swapping the file in src/assets
+      // is now enough, no need to also touch anything in public/.
+      { rel: "icon", href: placdaiFavicon, type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
@@ -121,10 +127,16 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        {/* Needs to be inside AuthProvider (reads useAuth) and outside
+            Outlet (one dialog instance for the whole app — any route can
+            call useAuthGate() to gate an action behind signup). */}
+        <AuthGateProvider>
+          <CreditsGateProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </CreditsGateProvider>
+        </AuthGateProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
 }
-

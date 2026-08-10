@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/list-generations")({
         const admin = getAdminClient();
         const { data, error } = await admin
           .from("gallery")
-          .select("id, public_url, storage_path, style, created_at, expires_at")
+          .select("id, public_url, storage_path, style, created_at, expires_at, products")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(20);

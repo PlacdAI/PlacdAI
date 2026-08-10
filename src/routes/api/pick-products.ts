@@ -25,11 +25,11 @@ export const Route = createFileRoute("/api/pick-products")({
           const inline = dataUrlToInline(roomImage);
           const result = await geminiJson<{ productIds: string[] }>({
             systemInstruction:
-              "You are an interior designer. Given a photo of an empty/sparse room and a catalog of furniture, pick exactly 3 products from the catalog that fit the room's dimensions, layout, and the requested style. Return only their IDs.",
+              "You are an interior designer. Given a photo of a room and a catalog of furniture, decide which items — if any — would genuinely improve the room in the requested style. Only include a product if it clearly fills a real gap: an empty surface that needs a lamp, a bare wall that needs art, missing seating, etc. Do not pad your selection to reach any particular number. It is completely fine to pick just 1 or 2 items if that's all the room actually needs. Never pick more than 3. Return only the IDs of items you're confident belong in this room.",
             parts: [
               { inlineData: inline },
               {
-                text: `Style: ${style}\n\nCatalog (JSON):\n${JSON.stringify(catalog)}\n\nReturn exactly 3 product IDs from this catalog.`,
+                text: `Style: ${style}\n\nCatalog (JSON):\n${JSON.stringify(catalog)}\n\nReturn between 1 and 3 product IDs from this catalog — only the ones that genuinely fit.`,
               },
             ],
             schema: {
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/pick-products")({
                 productIds: {
                   type: "array",
                   items: { type: "string" },
-                  minItems: 3,
+                  minItems: 1,
                   maxItems: 3,
                 },
               },
@@ -52,14 +52,12 @@ export const Route = createFileRoute("/api/pick-products")({
           // Dedupe again defensively by id.
           const byId = new Map(products.map((p) => [p.id, p]));
           products = Array.from(byId.values());
-          if (products.length < 3) {
-            const filler = await fetchFallbackProducts(style, 12);
-            for (const p of filler) {
-              if (!byId.has(p.id) && products.length < 3) {
-                byId.set(p.id, p);
-                products.push(p);
-              }
-            }
+          // Only backfill if the model's picks resolved to nothing usable —
+          // we still want at least 1 shoppable item, but we no longer pad
+          // up to 3 just to hit a count.
+          if (products.length === 0) {
+            const filler = await fetchFallbackProducts(style, 1);
+            products = filler.slice(0, 1);
           }
           products = products.slice(0, 3);
           return Response.json({ products });

@@ -4,7 +4,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { getAdminClient, getUserFromRequest } from "@/lib/authServer";
 
-const Body = z.object({ image: z.string(), style: z.string().optional() });
+const ProductSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().optional(),
+    brand: z.string().optional(),
+    price: z.number().optional(),
+    category: z.string().optional(),
+    imageUrl: z.string().optional(),
+    productUrl: z.string().optional(),
+    description: z.string().optional(),
+    verified: z.boolean().optional(),
+  })
+  .passthrough();
+
+const Body = z.object({
+  image: z.string(),
+  style: z.string().optional(),
+  products: z.array(ProductSchema).optional(),
+});
 
 export const Route = createFileRoute("/api/save-generation")({
   server: {
@@ -13,7 +31,7 @@ export const Route = createFileRoute("/api/save-generation")({
         const user = await getUserFromRequest(request);
         if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
         try {
-          const { image, style } = Body.parse(await request.json());
+          const { image, style, products } = Body.parse(await request.json());
           const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
           if (!m) return Response.json({ error: "bad_image" }, { status: 400 });
           const mime = m[1];
@@ -35,8 +53,30 @@ export const Route = createFileRoute("/api/save-generation")({
             storage_path: path,
             public_url: publicUrl,
             style: style ?? null,
+            products: products ?? [],
           }).select("id, expires_at").maybeSingle();
           if (ins.error) return Response.json({ error: ins.error.message }, { status: 500 });
+
+          // Best-effort: drain any storage paths the FIFO/purge triggers
+          // queued for deletion. They can't call the Storage API directly
+          // from SQL (see fix-gallery-storage-deletion.sql), so the app
+          // does the actual bucket cleanup here via the real Storage API.
+          try {
+            const { data: pending } = await admin
+              .from("gallery_deleted_pending")
+              .select("storage_path")
+              .limit(50);
+            if (pending && pending.length > 0) {
+              const paths = pending.map((p) => p.storage_path as string);
+              await admin.storage.from("gallery").remove(paths);
+              await admin
+                .from("gallery_deleted_pending")
+                .delete()
+                .in("storage_path", paths);
+            }
+          } catch {
+            /* non-fatal — next save retries */
+          }
 
           return Response.json({
             id: ins.data?.id,

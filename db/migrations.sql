@@ -1,147 +1,30 @@
 -- ─────────────────────────────────────────────────────────────
--- PlacdAI — full credit + gallery migration
--- Run ONCE in Supabase SQL Editor. Requires: pg_cron enabled,
--- a public storage bucket named 'gallery' (already created).
+-- PlacdAI — fix: "Direct deletion from storage tables is not allowed"
+--
+-- Root cause: gallery_enforce_fifo() and gallery_purge_expired() both
+-- ran `delete from storage.objects ...` directly in SQL. Supabase's
+-- Storage schema tracks folder "prefixes" internally and blocks raw
+-- DELETEs on storage.objects — even from security-definer functions —
+-- to force cleanup through the Storage API instead.
+--
+-- Fix: these functions now only delete the `gallery` metadata rows
+-- (a normal table, no restriction) and queue the storage_path into
+-- gallery_deleted_pending. The app drains that queue via the real
+-- Storage API (see save-generation.ts) right after each save.
 -- ─────────────────────────────────────────────────────────────
 
--- 0. Profiles table + auto-insert-on-signup trigger (idempotent)
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  username text,
-  full_name text,
-  avatar_url text,
-  preferred_style text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-grant select, insert, update, delete on public.profiles to authenticated;
-grant all on public.profiles to service_role;
-alter table public.profiles enable row level security;
-drop policy if exists "profiles: read own" on public.profiles;
-create policy "profiles: read own" on public.profiles
-  for select to authenticated using (auth.uid() = id);
-drop policy if exists "profiles: update own" on public.profiles;
-create policy "profiles: update own" on public.profiles
-  for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
-drop policy if exists "profiles: insert own" on public.profiles;
-create policy "profiles: insert own" on public.profiles
-  for insert to authenticated with check (auth.uid() = id);
-
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, username, full_name)
-  values (new.id, new.raw_user_meta_data ->> 'username', new.raw_user_meta_data ->> 'full_name')
-  on conflict (id) do nothing;
-  return new;
-end; $$;
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
-
--- 1. Add credits column to profiles (default 3)
-alter table public.profiles
-  add column if not exists credits integer not null default 3;
-
-
--- 2. Atomic credit consumer (returns remaining, -1 if insufficient)
-create or replace function public.consume_credit(_user_id uuid)
-returns integer language plpgsql security definer set search_path = public as $$
-declare
-  remaining integer;
-begin
-  update public.profiles
-     set credits = credits - 1,
-         updated_at = now()
-   where id = _user_id and credits > 0
-   returning credits into remaining;
-  if remaining is null then return -1; end if;
-  return remaining;
-end; $$;
-
--- 3. Refund helper (Stripe webhook grants credits)
-create or replace function public.grant_credits(_user_id uuid, _amount integer)
-returns integer language plpgsql security definer set search_path = public as $$
-declare
-  total integer;
-begin
-  update public.profiles
-     set credits = credits + _amount,
-         updated_at = now()
-   where id = _user_id
-   returning credits into total;
-  return total;
-end; $$;
-
-grant execute on function public.consume_credit(uuid) to authenticated;
-grant execute on function public.grant_credits(uuid, integer) to service_role;
-
--- 4. Stripe payments log (webhook idempotency)
-create table if not exists public.stripe_payments (
-  id text primary key,               -- stripe checkout session id
-  user_id uuid references auth.users(id) on delete cascade,
-  price_id text not null,
-  credits_granted integer not null,
-  amount_total integer,
-  currency text,
+-- Staging table for storage paths that still need to be removed from
+-- the bucket. service_role only — the admin client bypasses RLS anyway.
+create table if not exists public.gallery_deleted_pending (
+  storage_path text primary key,
   created_at timestamptz not null default now()
 );
-grant select on public.stripe_payments to authenticated;
-grant all on public.stripe_payments to service_role;
-alter table public.stripe_payments enable row level security;
-drop policy if exists "sp: read own" on public.stripe_payments;
-create policy "sp: read own" on public.stripe_payments
-  for select to authenticated using (auth.uid() = user_id);
+grant all on public.gallery_deleted_pending to service_role;
+alter table public.gallery_deleted_pending enable row level security;
 
--- 5. Gallery table — one row per saved generation (72h TTL, 20 item cap)
-create table if not exists public.gallery (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  storage_path text not null,        -- key inside 'gallery' bucket
-  public_url text not null,
-  style text,
-  created_at timestamptz not null default now(),
-  expires_at timestamptz not null default (now() + interval '72 hours')
-);
-create index if not exists gallery_user_created_idx
-  on public.gallery(user_id, created_at desc);
-create index if not exists gallery_expires_idx
-  on public.gallery(expires_at);
-
-grant select, insert, delete on public.gallery to authenticated;
-grant all on public.gallery to service_role;
-alter table public.gallery enable row level security;
-
-drop policy if exists "gallery: own read" on public.gallery;
-create policy "gallery: own read" on public.gallery
-  for select to authenticated using (auth.uid() = user_id);
-drop policy if exists "gallery: own insert" on public.gallery;
-create policy "gallery: own insert" on public.gallery
-  for insert to authenticated with check (auth.uid() = user_id);
-drop policy if exists "gallery: own delete" on public.gallery;
-create policy "gallery: own delete" on public.gallery
-  for delete to authenticated using (auth.uid() = user_id);
-
--- 6. Storage policies for the 'gallery' bucket (public read, owner write)
-drop policy if exists "gallery obj: public read" on storage.objects;
-create policy "gallery obj: public read" on storage.objects
-  for select to public using (bucket_id = 'gallery');
-
-drop policy if exists "gallery obj: owner insert" on storage.objects;
-create policy "gallery obj: owner insert" on storage.objects
-  for insert to authenticated
-  with check (bucket_id = 'gallery' and (storage.foldername(name))[1] = auth.uid()::text);
-
-drop policy if exists "gallery obj: owner delete" on storage.objects;
-create policy "gallery obj: owner delete" on storage.objects
-  for delete to authenticated
-  using (bucket_id = 'gallery' and (storage.foldername(name))[1] = auth.uid()::text);
-
--- 7. FIFO trigger — keep only the 20 newest gallery rows per user, and
---    delete the underlying storage.objects for the evicted rows.
+-- Rewritten FIFO trigger: metadata-only delete, queue storage cleanup.
 create or replace function public.gallery_enforce_fifo()
-returns trigger language plpgsql security definer set search_path = public, storage as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   victim record;
 begin
@@ -151,38 +34,30 @@ begin
      order by created_at desc
      offset 20
   loop
-    delete from storage.objects
-     where bucket_id = 'gallery' and name = victim.storage_path;
+    insert into public.gallery_deleted_pending (storage_path)
+      values (victim.storage_path)
+      on conflict (storage_path) do nothing;
     delete from public.gallery where id = victim.id;
   end loop;
   return new;
 end; $$;
 
-drop trigger if exists gallery_fifo_trg on public.gallery;
-create trigger gallery_fifo_trg
-  after insert on public.gallery
-  for each row execute function public.gallery_enforce_fifo();
-
--- 8. 72-hour purge — run every hour via pg_cron
+-- Rewritten 72h purge: same pattern, metadata-only + queue.
 create or replace function public.gallery_purge_expired()
-returns void language plpgsql security definer set search_path = public, storage as $$
+returns void language plpgsql security definer set search_path = public as $$
 declare
   victim record;
 begin
   for victim in
     select id, storage_path from public.gallery where expires_at < now()
   loop
-    delete from storage.objects
-     where bucket_id = 'gallery' and name = victim.storage_path;
+    insert into public.gallery_deleted_pending (storage_path)
+      values (victim.storage_path)
+      on conflict (storage_path) do nothing;
     delete from public.gallery where id = victim.id;
   end loop;
 end; $$;
 
--- Remove any previous schedule with the same name, then reschedule.
-select cron.unschedule(jobid)
-  from cron.job where jobname = 'placdai_gallery_purge';
-select cron.schedule(
-  'placdai_gallery_purge',
-  '0 * * * *',                       -- top of every hour
-  $$ select public.gallery_purge_expired(); $$
-);
+-- Note: gallery_fifo_trg (the trigger binding) doesn't need to be
+-- recreated — CREATE OR REPLACE FUNCTION keeps it pointed at the new
+-- body. pg_cron schedule for gallery_purge_expired() is untouched too.

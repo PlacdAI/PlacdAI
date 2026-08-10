@@ -23,16 +23,24 @@
 // direct GEMINI_API_KEY — it's cheap and simpler to keep on one path.
 // So GEMINI_API_KEY should be set in Lovable too (already is via secrets).
 // ─────────────────────────────────────────────────────────────
-const USE_LOVABLE_GATEWAY = true;
+const USE_LOVABLE_GATEWAY = false;
 
 // Endpoints
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/images/generations";
 
 // Which Gemini image model the gateway should route to.
+//
+// 🔧 MODEL CHOICE — using gemini-3.1-flash-image ("Nano Banana 2"), NOT
+// the "-lite" variant. Google's own docs say the lite tier "is not
+// optimized for multiple reference inputs or advanced multi-turn
+// sequential editing" — which is exactly what this app does (room +
+// product reference images, chained sequential edits in swap-product.ts).
+// Non-lite 3.1 is still cheaper/faster than the old 2.5 model, just
+// without that specific limitation.
 // Options: google/gemini-2.5-flash-image, google/gemini-3-pro-image,
 //          google/gemini-3.1-flash-image, google/gemini-3.1-flash-lite-image
-const GATEWAY_IMAGE_MODEL = "google/gemini-2.5-flash-image";
+const GATEWAY_IMAGE_MODEL = "google/gemini-3.1-flash-image";
 
 function geminiKey() {
   const k = process.env.GEMINI_API_KEY;
@@ -45,6 +53,48 @@ function lovableKey() {
   return k;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Shared retry-with-backoff for transient Gemini errors (429 rate limit /
+// quota, 500, 503 overloaded). Originally lived only inside
+// geminiImageEdit — pulled out so geminiImageStream and geminiJson get
+// the same protection, since they were throwing straight through on any
+// non-200 with no retry at all. That gap is what surfaced as a hard 500
+// on /api/generate-room during a currently-open Google-side bug where
+// paid Tier 1 projects intermittently get misrouted as free-tier quota
+// (confirmed on Google's own developer forum, affecting multiple
+// Gemini/Veo models — not something a code fix on our end prevents, but
+// retrying smooths over the intermittent failures instead of surfacing
+// them as a crash every time).
+//
+// Matches the status code out of our own error messages (all of which
+// are written as "<label> <status>: <body>", e.g. "Gemini generation
+// 429: ..." or "Gemini edit 503: ...") rather than hardcoding each
+// call site's exact wording, so this works unchanged regardless of which
+// function or path (gateway vs. direct) threw it.
+const RETRYABLE_STATUS = new Set([429, 500, 503]);
+const MAX_RETRIES = 3;
+
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const status = Number(/(\d{3}):/.exec(msg)?.[1]);
+      const isRetryable = RETRYABLE_STATUS.has(status);
+      if (!isRetryable || attempt === MAX_RETRIES) throw e;
+      const delayMs = 500 * 2 ** attempt + Math.random() * 250;
+      console.warn(
+        `${label}: transient ${status} error, retrying in ${Math.round(delayMs)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 export interface InlinePart {
   inlineData: { mimeType: string; data: string };
 }
@@ -54,7 +104,20 @@ export interface TextPart {
 export type Part = InlinePart | TextPart;
 
 // ─────────────────────────────────────────────────────────────
-// JSON generation (product picker). ALWAYS direct Gemini.
+// JSON generation (product picker, furniture detection). ALWAYS direct
+// Gemini — cheap text/JSON call, no image generation involved.
+//
+// 🔧 MODEL PIN — do NOT default this to "gemini-flash-latest". That's a
+// Google *alias*, not a model — their docs say it "gets hot-swapped with
+// every new release." That's exactly why AI Studio usage started showing
+// billing under "Gemini 3.6 Flash" instead of the 2.5 Flash this app was
+// built against: no code changed, Google just moved the alias's target
+// out from under us. Pin an explicit, currently-supported model instead,
+// so a future Google release can't silently change what this costs again.
+// gemini-2.5-flash-lite is plenty for structured extraction tasks (JSON
+// product picks, furniture bounding boxes) and is the cheapest current
+// stable model — swap it out here explicitly if you ever need to upgrade,
+// not by leaving it to an alias.
 // ─────────────────────────────────────────────────────────────
 export async function geminiJson<T>(opts: {
   model?: string;
@@ -62,7 +125,16 @@ export async function geminiJson<T>(opts: {
   schema: unknown;
   systemInstruction?: string;
 }): Promise<T> {
-  const model = opts.model ?? "gemini-flash-latest";
+  return withRetry("geminiJson", () => geminiJsonOnce(opts));
+}
+
+async function geminiJsonOnce<T>(opts: {
+  model?: string;
+  parts: Part[];
+  schema: unknown;
+  systemInstruction?: string;
+}): Promise<T> {
+  const model = opts.model ?? "gemini-3.1-flash-lite";
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: opts.parts }],
     generationConfig: {
@@ -107,16 +179,19 @@ function partsToGatewayContent(parts: Part[]) {
 
 // ─────────────────────────────────────────────────────────────
 // Streaming image generation (used by /api/generate-room)
-// Returns a Response whose body is SSE. The client parser in
-// src/lib/streamImage.ts understands BOTH gateway and direct shapes.
 // ─────────────────────────────────────────────────────────────
 export async function geminiImageStream(opts: {
   parts: Part[];
   model?: string;
 }): Promise<Response> {
+  return withRetry("geminiImageStream", () => geminiImageStreamOnce(opts));
+}
+
+async function geminiImageStreamOnce(opts: {
+  parts: Part[];
+  model?: string;
+}): Promise<Response> {
   if (USE_LOVABLE_GATEWAY) {
-    // 🔧 GATEWAY PATH (Lovable) — remove/ignore this branch when exporting
-    // if you'd rather delete the toggle entirely.
     const body = {
       model: GATEWAY_IMAGE_MODEL,
       messages: [{ role: "user", content: partsToGatewayContent(opts.parts) }],
@@ -134,19 +209,30 @@ export async function geminiImageStream(opts: {
   }
 
   // 🔧 DIRECT GEMINI PATH (VSCode) — uses GEMINI_API_KEY
-  const model = opts.model ?? "gemini-2.5-flash-image";
+  // gemini-2.5-flash-image uses generateContent for direct API calls
+  const model = opts.model ?? "gemini-3.1-flash-image";
   const body = {
     contents: [{ role: "user", parts: opts.parts }],
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
   };
-  return fetch(
-    `${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse&key=${geminiKey()}`,
+
+  const res = await fetch(
+    `${GEMINI_BASE}/models/${model}:generateContent?key=${geminiKey()}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     },
   );
+
+  if (!res.ok) throw new Error(`Gemini generation ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+
+  // Wrap the direct JSON response into an SSE stream format for streamImage.ts
+  const sseData = `data: ${JSON.stringify(json)}\n\n`;
+  return new Response(sseData, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -154,6 +240,13 @@ export async function geminiImageStream(opts: {
 // Returns a data URL string. Same on both backends.
 // ─────────────────────────────────────────────────────────────
 export async function geminiImageEdit(opts: {
+  parts: Part[];
+  model?: string;
+}): Promise<string> {
+  return withRetry("geminiImageEdit", () => geminiImageEditOnce(opts));
+}
+
+async function geminiImageEditOnce(opts: {
   parts: Part[];
   model?: string;
 }): Promise<string> {
@@ -182,7 +275,7 @@ export async function geminiImageEdit(opts: {
   }
 
   // 🔧 DIRECT GEMINI PATH (VSCode)
-  const model = opts.model ?? "gemini-2.5-flash-image";
+  const model = opts.model ?? "gemini-3.1-flash-image";
   const body = {
     contents: [{ role: "user", parts: opts.parts }],
     generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
