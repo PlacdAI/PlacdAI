@@ -14,12 +14,12 @@ import {
 import logoMark from "@/assets/trimmy-PlacdAI-logo-official.png";
 
 // "gated: true" links pop the signup dialog for guests instead of
-// navigating. "Redesign" stays open since the dashboard itself is
-// visible to guests now.
+// navigating. "Redesign" and "Pricing" stay open — guests can browse
+// pricing freely, same as the dashboard itself.
 const NAV_LINKS = [
   { to: "/dashboard", label: "Redesign", gated: false },
   { to: "/gallery", label: "Gallery", gated: true, reason: "Sign up free to save and revisit your redesigns in your gallery." },
-  { to: "/buy-credits", label: "Pricing", gated: true, reason: "Sign up free to see pricing and get your first design on us." },
+  { to: "/buy-credits", label: "Pricing", gated: false },
 ] as const;
 
 export function AppNav() {
@@ -108,14 +108,13 @@ export function AppNav() {
 
       {/* Right: credits + avatar */}
       <div className="flex shrink-0 items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => goGated("/buy-credits", "Sign up free to see pricing and get your first design on us.")}
+        <Link
+          to="/buy-credits"
           className="flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold text-[#333] transition-colors hover:bg-black/10"
         >
           <Coins className="h-3 w-3 text-[#555]" />
           <span>{creditDisplay} credits</span>
-        </button>
+        </Link>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -138,11 +137,10 @@ export function AppNav() {
               {user?.email}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => goGated("/buy-credits", "Sign up free to see pricing and get your first design on us.")}
-              className="flex cursor-pointer items-center gap-2"
-            >
-              <PlusCircle className="h-4 w-4" /> Buy Credits
+            <DropdownMenuItem asChild>
+              <Link to="/buy-credits" className="flex cursor-pointer items-center gap-2">
+                <PlusCircle className="h-4 w-4" /> Buy Credits
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/dashboard" className="flex cursor-pointer items-center gap-2">

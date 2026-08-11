@@ -161,7 +161,7 @@ function Nav() {
             Log In
           </Link>
           <Button asChild className="rounded-full bg-[#1C1C1C] px-6 text-[13px] font-semibold text-white hover:-translate-y-px hover:bg-[#2d2d2d]">
-            <Link to="/dashboard">Get 1 Free Design →</Link>
+            <Link to="/login">Get 1 Free Design →</Link>
           </Button>
         </div>
       </div>

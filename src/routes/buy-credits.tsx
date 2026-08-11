@@ -1,8 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useAuthGate } from "@/components/auth-gate";
 import { apiFetch } from "@/lib/apiFetch";
 import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
@@ -67,13 +68,9 @@ export const Route = createFileRoute("/buy-credits")({
 });
 
 function BuyCredits() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { requireAuth } = useAuthGate();
   const [busy, setBusy] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -154,7 +151,11 @@ function BuyCredits() {
               </div>
 
               <Button
-                onClick={() => buy(pack.id)}
+                onClick={() =>
+                  requireAuth(() => buy(pack.id), {
+                    reason: "Sign up free to buy credits and start generating.",
+                  })
+                }
                 disabled={busy !== null}
                 className={`w-full rounded-full py-6 text-sm font-bold ${
                   pack.hot

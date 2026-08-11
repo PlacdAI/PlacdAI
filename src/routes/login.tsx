@@ -11,7 +11,7 @@ import { Loader2, Sparkles, Clock, Images, Upload, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { supabase } from "@/lib/supabaseClient";
-import { DEV_BYPASS_KEY, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import signInImage from "@/assets/signinimagedesigned.jpg";
 import placdaiLogo from "@/assets/trimmy-PlacdAI-logo-official.png";
 import placdaiLogoDarkSurface from "@/assets/trimmy-PlacdAI-darkSurface-logo.png";
@@ -102,10 +102,11 @@ function LoginPage() {
     }
   };
 
-  const skipLogin = () => {
-    window.localStorage.setItem(DEV_BYPASS_KEY, "1");
-    toast.success("Dev bypass enabled.");
-    window.location.href = "/dashboard";
+  const continueAsGuest = () => {
+    // No session, no bypass flag — this goes to /dashboard exactly like
+    // any unauthenticated visitor. Upload/Generate stay gated there via
+    // useAuthGate's requireAuth.
+    navigate({ to: "/dashboard" });
   };
 
   return (
@@ -219,16 +220,13 @@ function LoginPage() {
               . We never post or share without your permission.
             </p>
 
-            {/* ── DEV BYPASS ─────────────────────────────────────
-                Remove this block (and DEV_BYPASS_KEY in src/lib/auth.tsx)
-                before shipping to production. */}
             <div className="mt-6 border-t border-border pt-4 text-center">
               <button
                 type="button"
-                onClick={skipLogin}
-                className="text-xs text-muted-foreground/60 hover:text-foreground"
+                onClick={continueAsGuest}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                Skip Login (Dev Only)
+                Continue as Guest
               </button>
             </div>
           </div>

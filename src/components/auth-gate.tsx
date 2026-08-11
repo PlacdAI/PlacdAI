@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -65,13 +65,19 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   );
 
   // If the user becomes authenticated while the dialog is open (e.g. they
-  // signed up in it), fire the pending action and close.
-  if (user && open) {
-    setOpen(false);
-    const run = pendingAction.current;
-    pendingAction.current = null;
-    if (run) queueMicrotask(run);
-  }
+  // signed up in it), fire the pending action and close. This has to be
+  // an effect, not code in the render body — running setState directly
+  // during render works by accident most of the time, but React's dev-mode
+  // double-render can invoke it twice before either update commits, which
+  // was firing the pending action (e.g. buy()) twice in a row.
+  useEffect(() => {
+    if (user && open) {
+      setOpen(false);
+      const run = pendingAction.current;
+      pendingAction.current = null;
+      if (run) run();
+    }
+  }, [user, open]);
 
   return (
     <AuthGateContext.Provider value={{ requireAuth }}>
