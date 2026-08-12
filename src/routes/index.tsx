@@ -3,7 +3,13 @@ import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import logoImg from "@/assets/placdai-logo.png";
+import logoImg from "@/assets/1785916564-trimmy-testingplacdLOGO-removebg-preview.png";
+import roomHeroEmpty from "@/assets/room-hero-empty.png";
+import roomHero from "@/assets/room-hero.jpg";
+import MyroomDecorated from "@/assets/MyroomDecorated.png";
+import MyroomEmpty from "@/assets/MyroomEmpty.png";
+import MyroomSettingUp from "@/assets/MyRoomSettingUp.png";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,11 +55,11 @@ export const Route = createFileRoute("/")({
 const FRAUNCES = "font-['Fraunces',_Georgia,_serif]";
 
 const IMG = {
-  before: "https://images.unsplash.com/photo-1630699144339-420f59b4747b?w=1400&h=900&fit=crop&auto=format",
-  after: "https://images.unsplash.com/photo-1772797583328-f83bc3f94f80?w=1400&h=900&fit=crop&auto=format",
-  step1: "https://images.unsplash.com/photo-1630699376059-b781970715b1?w=900&h=660&fit=crop&auto=format",
-  step2: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=900&h=660&fit=crop&auto=format",
-  step3: "https://images.unsplash.com/photo-1772797583328-f83bc3f94f80?w=900&h=660&fit=crop&auto=format",
+  before: roomHeroEmpty,
+  after: roomHero,
+  step1: MyroomEmpty,
+  step2: MyroomSettingUp,
+  step3: MyroomDecorated,
   minimalist: "https://images.unsplash.com/photo-1621362660850-a2554b580b41?w=1000&h=800&fit=crop&auto=format",
   coastal: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1000&h=800&fit=crop&auto=format",
   industrial: "https://images.unsplash.com/photo-1776090188651-a1ec2cf2bdb0?w=1000&h=800&fit=crop&auto=format",
@@ -124,45 +130,135 @@ function CheckDot({ tone = "sand" }: { tone?: "sand" | "muted" }) {
 
 // ─── Nav ───────────────────────────────────────────────────────────
 
+// Smooth-scrolls to an in-page section instead of the browser's default
+// instant jump, offsetting for the fixed 72px nav height so the section
+// heading doesn't end up tucked underneath it. Shared by the navbar links
+// and the "Watch Demo" / "View Gallery" anchor buttons further down.
+const NAV_HEIGHT = 72;
+function scrollToSection(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+  e.preventDefault();
+  const el = document.querySelector(href);
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY - NAV_HEIGHT;
+  window.scrollTo({ top, behavior: "smooth" });
+}
+
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+  // Close the mobile menu automatically if the viewport is resized past
+  // the sm breakpoint (e.g. rotating a tablet), so it can't get stuck open.
+  useEffect(() => {
+    const fn = () => {
+      if (window.innerWidth >= 640) setMobileOpen(false);
+    };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+
+  const navLinks: [string, string][] = [
+    ["How it Works", "#how-it-works"],
+    ["What's Different", "#unique"],
+    ["Gallery", "#gallery"],
+    ["Pricing", "#pricing"],
+  ];
 
   return (
     <nav
       className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${
-        scrolled ? "border-b border-[#E8E0D8] bg-[#FAF8F5]/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent"
+        scrolled || mobileOpen ? "border-b border-[#E8E0D8] bg-[#FAF8F5]/90 backdrop-blur-xl" : "border-b border-transparent bg-transparent"
       }`}
     >
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6 sm:px-10">
-        <Link to="/" className="flex items-center">
-          <img src={logoImg} alt="PlacdAI" className="h-[34px] object-contain" />
+        <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
+          <img src={logoImg} alt="" className="h-[34px] object-contain" />
+          {/* Same treatment as AppNav.tsx / login.tsx: Manrope, "Placd"
+              near-black + "AI" sage green. Keep these two hex values in
+              sync if the palette changes. */}
+          <span
+            className="text-2xl font-medium tracking-tight"
+            style={{ fontFamily: "'Manrope', sans-serif"}}
+          >
+            <span style={{ color: "#1E1E1E" }}>Placd</span>
+            <span style={{ color: "#7C9080" }}>AI</span>
+          </span>
         </Link>
 
         <div className="hidden items-center gap-10 sm:flex">
-          {[
-            ["How it Works", "#how-it-works"],
-            ["What's Different", "#unique"],
-            ["Gallery", "#gallery"],
-            ["Pricing", "#pricing"],
-          ].map(([label, href]) => (
-            <a key={label} href={href} className="text-[13.5px] font-medium text-[#6B5E52] transition-colors hover:text-[#1C1C1C]">
+          {navLinks.map(([label, href]) => (
+            <a
+              key={label}
+              href={href}
+              onClick={(e) => scrollToSection(e, href)}
+              className="text-[13.5px] font-medium text-[#6B5E52] transition-colors hover:text-[#1C1C1C]"
+            >
               {label}
             </a>
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link to="/login" className="hidden text-[13.5px] font-medium text-[#7A6B5E] transition-colors hover:text-[#1C1C1C] sm:inline">
             Log In
           </Link>
-          <Button asChild className="rounded-full bg-[#1C1C1C] px-6 text-[13px] font-semibold text-white hover:-translate-y-px hover:bg-[#2d2d2d]">
-            <Link to="/login">Get 1 Free Design →</Link>
+          <Button asChild className="rounded-full bg-[#1C1C1C] px-4 text-[12.5px] font-semibold text-white hover:-translate-y-px hover:bg-[#2d2d2d] sm:px-6 sm:text-[13px]">
+            <Link to="/login">
+              <span className="sm:hidden">Free Design →</span>
+              <span className="hidden sm:inline">Get 1 Free Design →</span>
+            </Link>
           </Button>
+
+          {/* Hamburger — only reachable path to nav links / Log In below the sm breakpoint */}
+          <button
+            type="button"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((v) => !v)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#1C1C1C] transition-colors hover:bg-[#E8E0D8]/60 sm:hidden"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              {mobileOpen ? (
+                <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              ) : (
+                <path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile menu panel */}
+      <div
+        className={`overflow-hidden border-t border-[#E8E0D8] bg-[#FAF8F5] transition-[max-height] duration-300 sm:hidden ${
+          mobileOpen ? "max-h-80" : "max-h-0 border-t-0"
+        }`}
+      >
+        <div className="flex flex-col gap-1 px-6 py-4">
+          {navLinks.map(([label, href]) => (
+            <a
+              key={label}
+              href={href}
+              onClick={(e) => {
+                scrollToSection(e, href);
+                setMobileOpen(false);
+              }}
+              className="rounded-lg px-2 py-3 text-[15px] font-medium text-[#4A4039] transition-colors hover:bg-[#E8E0D8]/50"
+            >
+              {label}
+            </a>
+          ))}
+          <Link
+            to="/login"
+            onClick={() => setMobileOpen(false)}
+            className="rounded-lg px-2 py-3 text-[15px] font-medium text-[#4A4039] transition-colors hover:bg-[#E8E0D8]/50"
+          >
+            Log In
+          </Link>
         </div>
       </div>
     </nav>
@@ -238,7 +334,7 @@ function Hero() {
         <div className="mb-14 text-center">
           <Eyebrow>AI Interior Design · 1 Free Generation on Sign Up</Eyebrow>
 
-          <h1 className={`mx-auto mb-7 text-[52px] font-normal leading-[0.95] tracking-[-0.03em] text-[#1C1C1C] sm:text-[80px] lg:text-[112px] ${FRAUNCES}`}>
+          <h1 className={`mx-auto mb-7 text-[40px] font-normal leading-[1.02] tracking-[-0.03em] text-[#1C1C1C] sm:text-[80px] sm:leading-[0.95] lg:text-[112px] ${FRAUNCES}`}>
             <span className="block">Your room,</span>
             <span className="block italic text-[#8BA888]">reimagined</span>
             <span className="block">by AI.</span>
@@ -264,12 +360,12 @@ function Hero() {
             <Button
               asChild
               size="lg"
-              className="rounded-full bg-[#1C1C1C] px-9 py-6 text-[15px] font-semibold text-white shadow-[0_4px_20px_rgba(28,28,28,0.3)] transition-all hover:-translate-y-0.5 hover:bg-[#2d2d2d] hover:shadow-[0_12px_32px_rgba(28,28,28,0.4)]"
+              className="rounded-full bg-[#1C1C1C] px-5 py-5 text-[13.5px] font-semibold text-white shadow-[0_4px_20px_rgba(28,28,28,0.3)] transition-all hover:-translate-y-0.5 hover:bg-[#2d2d2d] hover:shadow-[0_12px_32px_rgba(28,28,28,0.4)] sm:px-9 sm:py-6 sm:text-[15px]"
             >
               <Link to="/dashboard">Design Your Room — Free ↗</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full border-[#E8E0D8] px-7 py-6 text-[15px] font-medium text-[#1C1C1C] hover:border-[#CEBBA8]">
-              <a href="#how-it-works">Watch Demo</a>
+            <Button asChild size="lg" variant="outline" className="rounded-full border-[#E8E0D8] px-5 py-5 text-[13.5px] font-medium text-[#1C1C1C] hover:border-[#CEBBA8] sm:px-7 sm:py-6 sm:text-[15px]">
+              <a href="#how-it-works" onClick={(e) => scrollToSection(e, "#how-it-works")}>Watch Demo</a>
             </Button>
           </div>
         </div>
@@ -336,7 +432,7 @@ function Marquee() {
 // ─── How it works ──────────────────────────────────────────────────
 
 function HowItWorks() {
-  const steps: { num: string; title: string; titleItalic?: string; desc: ReactNode; src: string; imageRight: boolean }[] = [
+  const steps: { num: string; title: string; titleItalic?: string; desc: ReactNode; src: string; imageRight: boolean; aspect?: string; fit?: "cover" | "contain" }[] = [
     {
       num: "01",
       title: "Photograph your room.",
@@ -356,11 +452,16 @@ function HowItWorks() {
       desc: (
         <>
           Choose a style, a palette, and a room type — then describe your vision in plain language.{" "}
-          <span className="text-[#93a695]">"Warm Japandi with linen and smoked oak"</span> works perfectly.
+          <span className="text-[#93a695]">"Warm minimalist decor with natural rattan textures"</span> works perfectly.
         </>
       ),
       src: IMG.step2,
       imageRight: false,
+      // This is a wide app-UI screenshot, not a photo — the default 4:3
+      // object-cover box was cropping its edges off. Give it a wider box
+      // and let it show in full instead of being cropped.
+      aspect: "aspect-[16/10]",
+      fit: "contain",
     },
     {
       num: "03",
@@ -400,8 +501,14 @@ function HowItWorks() {
                   <p className="max-w-sm text-[15.5px] leading-relaxed text-[#7A6B5E]">{step.desc}</p>
                 </div>
                 <div className={step.imageRight ? "md:order-2" : "md:order-1"}>
-                  <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[#E8E0D8]">
-                    <img src={step.src} alt={`Step ${step.num}`} className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />
+                  <div className={`${step.aspect ?? "aspect-[4/3]"} overflow-hidden rounded-2xl bg-[#E8E0D8]`}>
+                    <img
+                      src={step.src}
+                      alt={`Step ${step.num}`}
+                      className={`h-full w-full transition-transform duration-500 hover:scale-105 ${
+                        step.fit === "contain" ? "object-contain" : "object-cover"
+                      }`}
+                    />
                   </div>
                 </div>
               </div>
@@ -495,7 +602,7 @@ function WhatsUnique() {
         <div className="grid grid-cols-1 items-start gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-24">
           <div className="lg:sticky lg:top-28">
             <Eyebrow light>What makes us different</Eyebrow>
-            <h2 className={`mb-6 text-[36px] font-normal leading-[1.05] tracking-[-0.025em] text-white sm:text-[48px] ${FRAUNCES}`}>
+            <h2 className={`mb-6 text-[30px] font-normal leading-[1.1] tracking-[-0.025em] text-white sm:text-[48px] ${FRAUNCES}`}>
               AI design that's actually
               <br />
               <span className="italic text-[#8BA888]">shoppable.</span>
@@ -515,28 +622,28 @@ function WhatsUnique() {
         <div className="mt-20 border-t border-white/[0.07] pt-16">
           <p className="mb-7 text-center text-xs font-bold uppercase tracking-[0.1em] text-white/30">PlacdAI vs. other AI tools</p>
           <div className="grid grid-cols-[2fr_1fr_1fr] overflow-hidden rounded-2xl border border-white/[0.07]">
-            <div className="border-b border-white/[0.07] bg-white/[0.04] px-6 py-4">
+            <div className="border-b border-white/[0.07] bg-white/[0.04] px-3 py-4 sm:px-6">
               <span className="text-xs font-semibold tracking-wide text-white/30">FEATURE</span>
             </div>
-            <div className="border-b border-l border-white/[0.07] bg-[#CEBBA8]/[0.1] px-6 py-4 text-center">
-              <span className="text-xs font-bold tracking-wide text-[#CEBBA8]">PLACDAI</span>
+            <div className="border-b border-l border-white/[0.07] bg-[#CEBBA8]/[0.1] px-2 py-4 text-center sm:px-6">
+              <span className="text-[10px] font-bold tracking-wide text-[#CEBBA8] sm:text-xs">PLACDAI</span>
             </div>
-            <div className="border-b border-l border-white/[0.07] bg-white/[0.04] px-6 py-4 text-center">
-              <span className="text-xs font-semibold tracking-wide text-white/30">OTHERS</span>
+            <div className="border-b border-l border-white/[0.07] bg-white/[0.04] px-2 py-4 text-center sm:px-6">
+              <span className="text-[10px] font-semibold tracking-wide text-white/30 sm:text-xs">OTHERS</span>
             </div>
 
             {COMPARISON_ROWS.map(([label, us, them], i) => (
               <Fragment key={label}>
-                <div className={`px-6 py-3.5 ${i < COMPARISON_ROWS.length - 1 ? "border-b border-white/5" : ""} ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
-                  <span className="text-sm text-white/65">{label}</span>
+                <div className={`px-3 py-3.5 sm:px-6 ${i < COMPARISON_ROWS.length - 1 ? "border-b border-white/5" : ""} ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}>
+                  <span className="text-[12.5px] leading-snug text-white/65 sm:text-sm">{label}</span>
                 </div>
                 <div
-                  className={`border-l border-white/[0.07] px-6 py-3.5 text-center ${i < COMPARISON_ROWS.length - 1 ? "border-b border-b-white/5" : ""} ${i % 2 === 0 ? "bg-[#CEBBA8]/[0.08]" : ""}`}
+                  className={`border-l border-white/[0.07] px-2 py-3.5 text-center sm:px-6 ${i < COMPARISON_ROWS.length - 1 ? "border-b border-b-white/5" : ""} ${i % 2 === 0 ? "bg-[#CEBBA8]/[0.08]" : ""}`}
                 >
                   {us ? <span className="text-base text-[#CEBBA8]">✓</span> : <span className="text-base text-white/20">–</span>}
                 </div>
                 <div
-                  className={`border-l border-white/[0.07] px-6 py-3.5 text-center ${i < COMPARISON_ROWS.length - 1 ? "border-b border-b-white/5" : ""} ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}
+                  className={`border-l border-white/[0.07] px-2 py-3.5 text-center sm:px-6 ${i < COMPARISON_ROWS.length - 1 ? "border-b border-b-white/5" : ""} ${i % 2 === 0 ? "bg-white/[0.02]" : ""}`}
                 >
                   {them ? <span className="text-base text-white/35">✓</span> : <span className="text-base text-white/20">–</span>}
                 </div>
@@ -574,7 +681,7 @@ function Gallery() {
         <div className="mb-14 flex flex-wrap items-end justify-between gap-5">
           <div>
             <Eyebrow>Style Gallery</Eyebrow>
-            <h2 className={`text-[36px] font-normal leading-none tracking-[-0.025em] text-[#1C1C1C] sm:text-[52px] ${FRAUNCES}`}>
+            <h2 className={`text-[30px] font-normal leading-tight tracking-[-0.025em] text-[#1C1C1C] sm:text-[52px] ${FRAUNCES}`}>
               Any room.
               <br />
               <span className="italic text-[#CEBBA8]">Any aesthetic.</span>
@@ -644,7 +751,7 @@ function Pricing() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-14 text-center">
           <Eyebrow>Pricing</Eyebrow>
-          <h2 className={`mb-4 text-[36px] font-normal tracking-[-0.025em] text-[#1C1C1C] sm:text-[48px] ${FRAUNCES}`}>
+          <h2 className={`mb-4 text-[28px] font-normal leading-tight tracking-[-0.025em] text-[#1C1C1C] sm:text-[48px] ${FRAUNCES}`}>
             Pay as you go.
             <br />
             <span className="italic text-[#CEBBA8]">No subscriptions.</span>
@@ -732,7 +839,7 @@ function FooterCTA() {
 
       <div className="relative mx-auto max-w-2xl text-center">
         <Eyebrow light>Get Started Free</Eyebrow>
-        <h2 className={`mb-6 text-[42px] font-normal leading-[0.97] tracking-[-0.025em] text-white sm:text-[64px] ${FRAUNCES}`}>
+        <h2 className={`mb-6 text-[30px] font-normal leading-[1.08] tracking-[-0.025em] text-white sm:text-[64px] sm:leading-[0.97] ${FRAUNCES}`}>
           Ready to see your
           <br />
           <span className="italic text-[#CEBBA8]">room's potential?</span>
@@ -745,14 +852,14 @@ function FooterCTA() {
           <Button
             asChild
             size="lg"
-            className="rounded-full bg-[#CEBBA8] px-10 py-6 text-[15px] font-bold text-white shadow-[0_4px_20px_rgba(206,187,168,0.4)] transition-all hover:-translate-y-1 hover:bg-[#CEBBA8] hover:shadow-[0_12px_40px_rgba(206,187,168,0.55)]"
+            className="rounded-full bg-[#CEBBA8] px-6 py-5 text-[13.5px] font-bold text-white shadow-[0_4px_20px_rgba(206,187,168,0.4)] transition-all hover:-translate-y-1 hover:bg-[#CEBBA8] hover:shadow-[0_12px_40px_rgba(206,187,168,0.55)] sm:px-10 sm:py-6 sm:text-[15px]"
           >
             <Link to="/dashboard">
               Start for Free — No Card <ArrowRight className="ml-2 inline h-4 w-4" />
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="rounded-full border-white/15 bg-transparent px-8 py-6 text-[15px] font-medium text-white/55 hover:border-[#CEBBA8]/50 hover:bg-transparent hover:text-white/85">
-            <a href="#gallery">View Gallery</a>
+            <a href="#gallery" onClick={(e) => scrollToSection(e, "#gallery")}>View Gallery</a>
           </Button>
         </div>
 

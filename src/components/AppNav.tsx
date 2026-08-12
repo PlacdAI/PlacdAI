@@ -67,15 +67,15 @@ export function AppNav() {
   const userInitials = fullName.charAt(0).toUpperCase();
 
   return (
-    <header className="flex h-[52px] shrink-0 items-center border-b border-black/[0.07] bg-white px-5">
+    <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-black/[0.07] bg-white px-3 sm:gap-0 sm:px-5">
       {/* Brand */}
-      <Link to="/dashboard" className="mr-8 flex shrink-0 items-center gap-2">
+      <Link to="/dashboard" className="mr-3 flex shrink-0 items-center gap-2 sm:mr-8">
         <img src={logoMark} alt="" className="h-[26px] w-[26px]" />
         {/* Same treatment as the login page wordmark: Manrope, "Placd"
             near-black + "AI" sage green. Keep these two hex values in
             sync with PlacdaiLogo in login.tsx if the palette changes. */}
         <span
-          className="text-[15px] font-bold tracking-tight"
+          className="hidden text-[18px] font-normal tracking-tight sm:inline"
           style={{ fontFamily: "'Manrope', sans-serif" }}
         >
           <span style={{ color: "#1E1E1E" }}>Placd</span>
@@ -83,8 +83,9 @@ export function AppNav() {
         </span>
       </Link>
 
-      {/* Nav links */}
-      <nav className="flex flex-1 items-center gap-0.5">
+      {/* Nav links — this row scrolls internally on very narrow screens
+          instead of pushing the header (and credits/avatar) off-screen. */}
+      <nav className="flex flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {NAV_LINKS.map((link) => {
           const active = isActive(link.to);
           return link.gated ? (
@@ -92,13 +93,13 @@ export function AppNav() {
               key={link.to}
               type="button"
               onClick={() => goGated(link.to, link.reason)}
-              className={navLinkClass(active)}
+              className={`shrink-0 ${navLinkClass(active)}`}
             >
               {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#CEBBA8]" />}
               {link.label}
             </button>
           ) : (
-            <Link key={link.to} to={link.to} className={navLinkClass(active)}>
+            <Link key={link.to} to={link.to} className={`shrink-0 ${navLinkClass(active)}`}>
               {active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#CEBBA8]" />}
               {link.label}
             </Link>
@@ -107,13 +108,16 @@ export function AppNav() {
       </nav>
 
       {/* Right: credits + avatar */}
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
         <Link
           to="/buy-credits"
-          className="flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold text-[#333] transition-colors hover:bg-black/10"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#333] transition-colors hover:bg-black/10 sm:px-3"
         >
           <Coins className="h-3 w-3 text-[#555]" />
-          <span>{creditDisplay} credits</span>
+          <span>
+            {creditDisplay}
+            <span className="hidden sm:inline"> credits</span>
+          </span>
         </Link>
 
         <DropdownMenu>

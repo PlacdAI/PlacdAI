@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, ListChecks, RotateCw, ScanSearch, Search, Sparkles, Upload, Wand2, Zap } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, ListChecks, RotateCw, ScanSearch, Search, Upload, Wand2, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useAuthGate } from "@/components/auth-gate";
 import { useCreditsGate } from "@/components/credits-gate";
@@ -13,6 +13,7 @@ import { STYLES, type Product, type Style } from "@/lib/types";
 import { streamImage } from "@/lib/streamImage";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import heroImage from "@/assets/room-hero.jpg";
+import logoMark from "@/assets/trimmy-PlacdAI-logo-official.png";
 import { type DetectedItem, matchDetectedItem } from "@/lib/furnitureMatching";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -889,35 +890,28 @@ function Home() {
           </div>
 
           {/* Floating upload + prompt + generate bar, bottom of canvas.
-              The eye button lives in the same row as the pill (not a
-              separate floating control) but keeps its own opacity so it's
-              always reachable even while the rest of the bar is faded. */}
-          <div className="absolute inset-x-4 bottom-4 flex items-center gap-2">
+              Below sm the prompt needs its own full-width row — cramming
+              it into one row alongside both buttons left it a few pixels
+              wide and unusable for typing. The eye button lives in the
+              same row as the pill (not a separate floating control) but
+              keeps its own opacity so it's always reachable even while
+              the rest of the bar is faded. */}
+          <div className="absolute inset-x-4 bottom-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div
-              className={`flex flex-1 items-end gap-2 rounded-2xl border border-border/60 bg-background/95 p-2 shadow-lg backdrop-blur transition-opacity duration-200 ${
+              className={`flex flex-1 flex-col gap-2 rounded-2xl border border-border/60 bg-background/95 p-2 shadow-lg backdrop-blur transition-opacity duration-200 sm:flex-row sm:items-end ${
                 actionBarVisible ? "opacity-100" : "pointer-events-none opacity-[0.05]"
               }`}
             >
-              <button
-                type="button"
-                onClick={() =>
-                  requireAuth(() => fileRef.current?.click(), {
-                    reason: "Sign up free to upload your room photo and get your first AI redesign.",
-                  })
-                }
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-input bg-background px-3 text-sm font-medium text-foreground transition hover:bg-accent"
-              >
-                <Upload className="h-4 w-4" />
-                {roomImage ? "Change photo" : "Upload Photo"}
-              </button>
-              <div className="mb-2 h-6 w-px shrink-0 self-center bg-border" />
               {/* 🔧 Auto-growing textarea (was a single-line input) — height
                   is driven by the effect above, capped at
                   VISION_TEXTAREA_MAX_HEIGHT then scrolls internally.
                   maxLength hard-stops typing at VISION_PROMPT_MAX; the
                   counter only appears once the user is close to the cap,
-                  so it's not visual noise for short prompts. */}
-              <div className="flex min-w-0 flex-1 flex-col">
+                  so it's not visual noise for short prompts.
+                  order-1/sm:order-3 puts it on its own full-width row
+                  first below sm, and back between Upload and Generate
+                  at sm+ (matching the original single-row layout). */}
+              <div className="order-1 flex min-w-0 flex-col sm:order-3 sm:flex-1">
                 <textarea
                   ref={visionTextareaRef}
                   value={visionPrompt}
@@ -939,23 +933,45 @@ function Home() {
                   </span>
                 )}
               </div>
-              <Button
-                onClick={() =>
-                  requireAuth(generate, { reason: "Sign up free to generate your AI redesign — your first one's on us." })
-                }
-                disabled={busy || !roomImage}
-                className="h-10 shrink-0"
-              >
-                <Wand2 className="mr-2 h-4 w-4" />
-                {busy ? "Working…" : "Generate Design"}
-              </Button>
+
+              {/* Upload + Generate share a row below sm (order-2); at sm+
+                  this wrapper "un-boxes" via sm:contents so each button
+                  falls back into the single row above/below the textarea,
+                  in the original order. */}
+              <div className="order-2 flex items-center gap-2 sm:contents">
+                <button
+                  type="button"
+                  onClick={() =>
+                    requireAuth(() => fileRef.current?.click(), {
+                      reason: "Sign up free to upload your room photo and get your first AI redesign.",
+                    })
+                  }
+                  className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-input bg-background px-3 text-sm font-medium text-foreground transition hover:bg-accent sm:order-1"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">{roomImage ? "Change photo" : "Upload Photo"}</span>
+                  <span className="sm:hidden">{roomImage ? "Change" : "Upload"}</span>
+                </button>
+                <div className="hidden h-6 w-px shrink-0 self-center bg-border sm:order-2 sm:block" />
+                <Button
+                  onClick={() =>
+                    requireAuth(generate, { reason: "Sign up free to generate your AI redesign — your first one's on us." })
+                  }
+                  disabled={busy || !roomImage}
+                  className="h-10 flex-1 shrink-0 sm:order-4 sm:flex-none"
+                >
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">{busy ? "Working…" : "Generate Design"}</span>
+                  <span className="sm:hidden">{busy ? "Working…" : "Generate"}</span>
+                </Button>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={() => setActionBarVisible((v) => !v)}
               title={actionBarVisible ? "Hide toolbar" : "Show toolbar"}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/95 text-foreground shadow-lg backdrop-blur transition hover:bg-accent"
+              className="hidden h-10 w-10 shrink-0 items-center justify-center self-end rounded-full border border-border/60 bg-background/95 text-foreground shadow-lg backdrop-blur transition hover:bg-accent sm:flex sm:self-auto"
             >
               {actionBarVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
@@ -963,6 +979,18 @@ function Home() {
         </div>
 
         {/* ── Sidebar ───────────────────────────────────────── */}
+        {/* Below md, a fixed-width 440px panel sitting in this flex row
+            would be wider than most phones — it'd either crush the canvas
+            to nothing or force the whole page to scroll horizontally.
+            So below md it's a fixed overlay drawer that slides in over the
+            canvas (with a backdrop to dismiss it); at md+ it's back to the
+            original in-flow width toggle. */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-x-0 bottom-0 top-[52px] z-20 bg-black/40 md:hidden"
+          />
+        )}
         <div className="relative flex h-full shrink-0">
           {/* 🔧 Position (not style) differs by state, and that's
               necessary rather than a repeat of the old two-button
@@ -978,16 +1006,16 @@ function Home() {
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            className={`absolute top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-foreground/70 shadow-md transition hover:text-foreground active:scale-90 ${
-              sidebarOpen ? "left-0 -translate-x-1/2" : "right-3"
+            className={`fixed top-[68px] z-30 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-foreground/70 shadow-md transition hover:text-foreground active:scale-90 md:absolute md:top-4 md:z-20 ${
+              sidebarOpen ? "right-3 md:left-0 md:right-auto md:-translate-x-1/2" : "right-3"
             }`}
           >
             {sidebarOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
 
           <aside
-            className={`flex h-full flex-col overflow-hidden border-l border-border bg-card transition-[width] duration-300 ease-in-out ${
-              sidebarOpen ? "w-[440px]" : "w-0"
+            className={`fixed bottom-0 right-0 top-[52px] z-20 flex h-auto w-[88vw] max-w-[440px] flex-col overflow-hidden border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:z-auto md:h-full md:w-[440px] md:translate-x-0 md:shadow-none md:transition-[width] ${
+              sidebarOpen ? "translate-x-0" : "translate-x-full md:w-0"
             }`}
           >
           <div className="flex shrink-0 items-center border-b border-border">
@@ -1083,7 +1111,7 @@ function Home() {
               <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
                 <div>
                   <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Sparkles className="h-3 w-3" /> AI Interior Design
+                    <img src={logoMark} alt="" className="h-4 w-4 object-contain opacity-50" /> AI Interior Design
                   </div>
                 </div>
 
