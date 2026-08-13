@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, ListChecks, RotateCw, ScanSearch, Search, Upload, Wand2, Zap } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, ListChecks, Plus, RotateCw, ScanSearch, Search, Upload, Wand2, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useAuthGate } from "@/components/auth-gate";
 import { useCreditsGate } from "@/components/credits-gate";
@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { supabase } from "@/lib/supabaseClient";
 import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
-import { STYLES, type Product, type Style } from "@/lib/types";
+import { STYLES, type Product } from "@/lib/types";
 import { streamImage } from "@/lib/streamImage";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import heroImage from "@/assets/room-hero.jpg";
@@ -385,8 +385,18 @@ function Home() {
   }, [visionPrompt]);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasRect = useContainRect(canvasContainerRef, aspectRatio);
-  const [style, setStyle] = useState<Style>("Mid-Century Modern");
-  const [roomType, setRoomType] = useState<(typeof ROOM_TYPES)[number]>("Living Room");
+  const [style, setStyle] = useState<string>("Mid-Century Modern");
+  const [roomType, setRoomType] = useState<string>("Living Room");
+  // "Custom" room type / style — same pattern as the existing Custom
+  // palette below: selecting the tile reveals a text field, and the
+  // typed value (not the literal word "Custom") is what actually gets
+  // sent to the API. Covers anything not in the preset lists — a
+  // reading nook, a garden corner, coastal, farmhouse, etc.
+  const [customRoomType, setCustomRoomType] = useState("");
+  const [customStyle, setCustomStyle] = useState("");
+  const effectiveRoomType = roomType === "Custom" ? customRoomType.trim() || "Custom Space" : roomType;
+  const effectiveStyle = style === "Custom" ? customStyle.trim() || "Custom Style" : style;
+  const missingCustomInput = (roomType === "Custom" && !customRoomType.trim()) || (style === "Custom" && !customStyle.trim());
   const [palette, setPalette] = useState<(typeof PALETTES)[number]["name"]>("Neutral");
   const [customColors, setCustomColors] = useState<string[]>(["#888888"]);
   const [activeCustomColor, setActiveCustomColor] = useState(0);
@@ -517,7 +527,7 @@ function Home() {
     const pickPromise = fetch("/api/pick-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomImage, style }),
+      body: JSON.stringify({ roomImage, style: effectiveStyle }),
     })
       .then(async (r) => {
         const j = (await r.json()) as { products?: Product[]; error?: string };
@@ -542,8 +552,8 @@ function Home() {
         "/api/generate-room",
         {
           roomImage,
-          style,
-          roomType,
+          style: effectiveStyle,
+          roomType: effectiveRoomType,
           palette: palette === "Custom" ? `Custom (${customColors.join(", ")})` : palette,
           paletteColors: activePaletteColors,
           prompt: visionPrompt.trim() || undefined,
@@ -616,7 +626,7 @@ function Home() {
       try {
         await apiFetch("/api/save-generation", {
           method: "POST",
-          body: JSON.stringify({ image: savedImage, style, products: finalProducts }),
+          body: JSON.stringify({ image: savedImage, style: effectiveStyle, products: finalProducts }),
         });
       } catch {
         /* non-fatal */
@@ -957,7 +967,7 @@ function Home() {
                   onClick={() =>
                     requireAuth(generate, { reason: "Sign up free to generate your AI redesign — your first one's on us." })
                   }
-                  disabled={busy || !roomImage}
+                  disabled={busy || !roomImage || missingCustomInput}
                   className="h-10 flex-1 shrink-0 sm:order-4 sm:flex-none"
                 >
                   <Wand2 className="mr-2 h-4 w-4" />
@@ -1127,7 +1137,18 @@ function Home() {
                         onClick={() => setRoomType(type)}
                       />
                     ))}
+                    <ImageChoiceCard label="Custom" selected={roomType === "Custom"} onClick={() => setRoomType("Custom")} />
                   </div>
+                  {roomType === "Custom" && (
+                    <input
+                      type="text"
+                      value={customRoomType}
+                      onChange={(e) => setCustomRoomType(e.target.value.slice(0, 60))}
+                      maxLength={60}
+                      placeholder="e.g. 'reading nook', 'garden patio', 'home office'"
+                      className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-foreground/40 focus:outline-none"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -1142,7 +1163,18 @@ function Home() {
                         onClick={() => setStyle(itemStyle)}
                       />
                     ))}
+                    <ImageChoiceCard label="Custom" selected={style === "Custom"} onClick={() => setStyle("Custom")} />
                   </div>
+                  {style === "Custom" && (
+                    <input
+                      type="text"
+                      value={customStyle}
+                      onChange={(e) => setCustomStyle(e.target.value.slice(0, 60))}
+                      maxLength={60}
+                      placeholder="e.g. 'coastal', 'farmhouse', 'art deco'"
+                      className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-foreground/40 focus:outline-none"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -1206,13 +1238,13 @@ function Home() {
 
               <div className="shrink-0 border-t border-border p-4">
                 <p className="mb-2 text-center text-[11px] text-muted-foreground">
-                  {style} · {roomType} · {palette}
+                  {effectiveStyle} · {effectiveRoomType} · {palette}
                 </p>
                 <Button
                   onClick={() =>
                     requireAuth(generate, { reason: "Sign up free to generate your AI redesign — your first one's on us." })
                   }
-                  disabled={busy || !roomImage}
+                  disabled={busy || !roomImage || missingCustomInput}
                   className="h-11 w-full"
                 >
                   <Wand2 className="mr-2 h-4 w-4" />
@@ -1270,10 +1302,26 @@ function ImageChoiceCard({
   onClick,
 }: {
   label: string;
-  image: string;
+  image?: string;
   selected: boolean;
   onClick: () => void;
 }) {
+  if (!image) {
+    // Custom tile — no stock photo makes sense for an arbitrary
+    // user-typed room/style, so this is a dashed "add" tile instead.
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`group flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-center transition ${
+          selected ? "border-foreground bg-foreground/[0.04]" : "border-border hover:border-foreground/40"
+        }`}
+      >
+        <Plus className={`h-4 w-4 ${selected ? "text-foreground" : "text-muted-foreground"}`} />
+        <span className={`text-xs font-semibold ${selected ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
