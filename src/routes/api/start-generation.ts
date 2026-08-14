@@ -41,22 +41,26 @@ export const Route = createFileRoute("/api/start-generation")({
           }
           const generationId = ins.data.id as string;
 
-          // Fire-and-forget on purpose: the "-background" suffix in the URL
-          // is what makes Netlify return 202 immediately and let the
-          // function keep running — but that's a property of the *target*
-          // endpoint, not of how we call it. If we awaited this fetch here,
-          // this route would just inherit the same 10s ceiling we're trying
-          // to escape. process.env.URL is Netlify's own env var for the
-          // deployed site origin; falls back to the request's own origin
-          // for local dev where that var isn't set.
+          // 🔧 Was fire-and-forget (fetch not awaited). Netlify freezes the
+          // execution environment the instant this handler returns — an
+          // in-flight, un-awaited fetch can get frozen mid-send rather than
+          // actually reaching generate-room-background. Awaiting it here
+          // only waits for Netlify to accept the invocation and hand back
+          // its 202 (~ms), not for the 40s generation itself to finish, so
+          // this route stays fast — it just guarantees the handoff
+          // completes before we return. process.env.URL is Netlify's own
+          // env var for the deployed site origin; falls back to the
+          // request's own origin for local dev where that var isn't set.
           const base = process.env.URL ?? new URL(request.url).origin;
-          fetch(`${base}/.netlify/functions/generate-room-background`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ generationId, userId: user.id, ...body }),
-          }).catch((e) => {
+          try {
+            await fetch(`${base}/.netlify/functions/generate-room-background`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ generationId, userId: user.id, ...body }),
+            });
+          } catch (e) {
             console.error("Failed to invoke generate-room-background:", e);
-          });
+          }
 
           return Response.json({ generationId });
         } catch (e) {
