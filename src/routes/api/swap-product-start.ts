@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/swap-product-start")({
 
           const ins = await admin
             .from("product_swaps")
-            .insert({ user_id: user.id, status: "pending" })
+            .insert({ user_id: user.id, status: "pending", is_retry: body.isRetry })
             .select("id")
             .single();
           if (ins.error || !ins.data) {
@@ -43,15 +43,51 @@ export const Route = createFileRoute("/api/swap-product-start")({
           // hand-off fetch so it can't get frozen mid-send when this
           // handler returns. Only waits for Netlify's ~ms 202 accept, not
           // for the actual swap to finish.
+          // 🔧 Same gap as start-generation.ts had: previously only caught
+          // a hard network exception and otherwise assumed the background
+          // function actually started, leaving the row stuck at 'pending'
+          // forever if the invocation itself failed non-exceptionally.
           const base = process.env.URL ?? new URL(request.url).origin;
           try {
-            await fetch(`${base}/.netlify/functions/swap-product-background`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ swapId, userId: user.id, ...body }),
-            });
+            const bgRes = await fetch(
+              `${base}/.netlify/functions/swap-product-background`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ swapId, userId: user.id, ...body }),
+              },
+            );
+            if (!bgRes.ok) {
+              throw new Error(`swap-product-background responded ${bgRes.status}`);
+            }
           } catch (e) {
-            console.error("Failed to invoke swap-product-background:", e);
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error("Failed to invoke swap-product-background:", msg);
+
+            await admin
+              .from("product_swaps")
+              .update({ status: "failed", error: `Could not start placement: ${msg}` })
+              .eq("id", swapId);
+
+            // Only retryProduct() consumes a credit before calling this
+            // path — the main generate() swap rides on the up-front
+            // generation credit and never charges separately (see
+            // dashboard.tsx). Only refund here when this was a retry, same
+            // scoping as swap-product-background.ts's own failure path.
+            if (body.isRetry) {
+              const refund = await admin.rpc("refund_credit", { _user_id: user.id });
+              if (refund.error) {
+                console.error(
+                  `Failed to refund credit for user ${user.id}:`,
+                  refund.error.message,
+                );
+              }
+            }
+
+            return Response.json(
+              { error: "Could not start product placement — please try again." },
+              { status: 502 },
+            );
           }
 
           return Response.json({ swapId });

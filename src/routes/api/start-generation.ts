@@ -41,25 +41,59 @@ export const Route = createFileRoute("/api/start-generation")({
           }
           const generationId = ins.data.id as string;
 
-          // 🔧 Was fire-and-forget (fetch not awaited). Netlify freezes the
-          // execution environment the instant this handler returns — an
-          // in-flight, un-awaited fetch can get frozen mid-send rather than
-          // actually reaching generate-room-background. Awaiting it here
-          // only waits for Netlify to accept the invocation and hand back
-          // its 202 (~ms), not for the 40s generation itself to finish, so
-          // this route stays fast — it just guarantees the handoff
-          // completes before we return. process.env.URL is Netlify's own
-          // env var for the deployed site origin; falls back to the
-          // request's own origin for local dev where that var isn't set.
+          // 🔧 Previously only caught a hard network exception (DNS
+          // failure, connection refused) and otherwise assumed success —
+          // silently. If the fetch reached Netlify but the background
+          // function immediately errored, crashed on cold start, or got
+          // rejected for any reason short of a thrown exception, this
+          // code never noticed: it returned generationId to the client
+          // as if everything were fine, leaving the row stuck at
+          // 'pending' forever (never 'done', never 'failed') since
+          // nothing ever got the chance to write a terminal status or
+          // trigger a refund. The client's own 60s UI timeout then fires
+          // with no idea the credit was never actually put to work.
+          //
+          // Now: explicitly check response.ok. A non-2xx means the
+          // handoff itself failed — mark the row 'failed', refund the
+          // credit right here (synchronously, before responding), and
+          // tell the client immediately instead of making it wait out a
+          // dead 60s timer for a job that was never going to run.
           const base = process.env.URL ?? new URL(request.url).origin;
           try {
-            await fetch(`${base}/.netlify/functions/generate-room-background`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ generationId, userId: user.id, ...body }),
-            });
+            const bgRes = await fetch(
+              `${base}/.netlify/functions/generate-room-background`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ generationId, userId: user.id, ...body }),
+              },
+            );
+            if (!bgRes.ok) {
+              throw new Error(
+                `generate-room-background responded ${bgRes.status}`,
+              );
+            }
           } catch (e) {
-            console.error("Failed to invoke generate-room-background:", e);
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error("Failed to invoke generate-room-background:", msg);
+
+            await admin
+              .from("generations")
+              .update({ status: "failed", error: `Could not start generation: ${msg}` })
+              .eq("id", generationId);
+
+            const refund = await admin.rpc("refund_credit", { _user_id: user.id });
+            if (refund.error) {
+              console.error(
+                `Failed to refund credit for user ${user.id}:`,
+                refund.error.message,
+              );
+            }
+
+            return Response.json(
+              { error: "Could not start generation — please try again." },
+              { status: 502 },
+            );
           }
 
           return Response.json({ generationId });
