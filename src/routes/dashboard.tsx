@@ -51,33 +51,56 @@ const CARD_IMAGES = {
 // matching rule as this hotspot-click check — see furnitureMatching.ts.
 
 
-/** Crop a percentage-based region out of a data URL image, client-side. */
-function cropImageRegion(
-  imageDataUrl: string,
+/** Crop a percentage-based region out of an image (data URL or remote URL), client-side. */
+async function cropImageRegion(
+  imageUrl: string,
   bbox: DetectedItem["bbox"],
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const sx = (bbox.xPct / 100) * img.naturalWidth;
-      const sy = (bbox.yPct / 100) * img.naturalHeight;
-      const sw = Math.max(1, (bbox.wPct / 100) * img.naturalWidth);
-      const sh = Math.max(1, (bbox.hPct / 100) * img.naturalHeight);
-      const canvas = document.createElement("canvas");
-      canvas.width = sw;
-      canvas.height = sh;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas not supported"));
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Crop failed"));
-      }, "image/png");
-    };
-    img.onerror = () => reject(new Error("Couldn't load image for cropping"));
-    img.src = imageDataUrl;
-  });
+  // 🔧 Was: new Image() with crossOrigin="anonymous" and img.src set
+  // directly to the remote URL. That works on Chrome/desktop, but fails
+  // silently on mobile Safari — WebKit has a long-standing bug where, if
+  // the exact same URL was already loaded elsewhere on the page via a
+  // plain <img> (no CORS, e.g. the main room photo display), Safari's
+  // image cache can serve that earlier non-CORS load back out even for a
+  // later request with crossOrigin="anonymous" set, silently tainting the
+  // canvas regardless of the attribute being correct in code.
+  //
+  // Fetching the bytes ourselves and loading them via an object URL
+  // sidesteps the browser's <img> cache entirely — object URLs are always
+  // same-origin, so the canvas is never tainted no matter what cache
+  // quirks a given browser has. Also works transparently for plain data:
+  // URLs (fetch() handles those natively), so this covers both cases this
+  // function is ever called with.
+  const res = await fetch(imageUrl, { mode: "cors" });
+  if (!res.ok) throw new Error("Couldn't load image for cropping");
+  const sourceBlob = await res.blob();
+  const objectUrl = URL.createObjectURL(sourceBlob);
+
+  try {
+    return await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const sx = (bbox.xPct / 100) * img.naturalWidth;
+        const sy = (bbox.yPct / 100) * img.naturalHeight;
+        const sw = Math.max(1, (bbox.wPct / 100) * img.naturalWidth);
+        const sh = Math.max(1, (bbox.hPct / 100) * img.naturalHeight);
+        const canvas = document.createElement("canvas");
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Crop failed"));
+        }, "image/png");
+      };
+      img.onerror = () => reject(new Error("Couldn't load image for cropping"));
+      img.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 // 🔧 Stable key for a detected item, used to cache its cropped thumbnail
