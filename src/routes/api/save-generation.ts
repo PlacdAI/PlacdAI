@@ -2,6 +2,7 @@
 // and insert a row into public.gallery. FIFO trigger evicts >20 per user.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { ensureDataUrl } from "@/lib/gemini.server";
 import { getAdminClient, getUserFromRequest } from "@/lib/authServer";
 
 const ProductSchema = z
@@ -31,7 +32,17 @@ export const Route = createFileRoute("/api/save-generation")({
         const user = await getUserFromRequest(request);
         if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
         try {
-          const { image, style, products } = Body.parse(await request.json());
+          const { image: rawImage, style, products } = Body.parse(await request.json());
+
+          // 🔧 image can now be a Supabase Storage public URL instead of a
+          // base64 data URL — a generation with zero matched products never
+          // runs swap-product, so it reaches this route straight from
+          // start-generation/generate-room-background, which hand off
+          // finalRoom as a Storage URL. The regex check right below this
+          // always expected a data URL — normalize first so a no-product
+          // generation doesn't fail here with "bad_image".
+          const image = await ensureDataUrl(rawImage);
+
           const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
           if (!m) return Response.json({ error: "bad_image" }, { status: 400 });
           const mime = m[1];

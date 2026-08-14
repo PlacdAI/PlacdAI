@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   dataUrlToInline,
+  ensureDataUrl,
   fetchImageAsInline,
   geminiImageEdit,
 } from "@/lib/gemini.server";
@@ -113,9 +114,20 @@ export const Route = createFileRoute("/api/swap-product")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { currentRoomImage, productIds, isRetry } = Input.parse(
+          const { currentRoomImage: rawRoomImage, productIds, isRetry } = Input.parse(
             await request.json(),
           );
+
+          // 🔧 The room image handed to this route can now be a Supabase
+          // Storage public URL instead of a base64 data URL — since
+          // start-generation/generate-room-background return finalRoom as
+          // a Storage URL (kept small on purpose for Realtime), not a data
+          // URL like the old synchronous generate-room.ts always produced.
+          // Everything below this line (dataUrlToInline, detectFurniture)
+          // assumes a data URL, so normalize once here instead of touching
+          // every call site individually.
+          const currentRoomImage = await ensureDataUrl(rawRoomImage);
+
           const products = await fetchProductsByIds(productIds);
           if (products.length === 0) {
             return Response.json({ error: "No products found" }, { status: 404 });

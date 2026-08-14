@@ -16,6 +16,14 @@ dist-ssr
 .nitro
 *.local
 
+# Environment variables / secrets — never commit real API keys/secrets
+.env
+.env.local
+.env.*.local
+
+# Lovable scaffold metadata — not needed once hand-editing in VSCode
+.lovable/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
@@ -30,3 +38,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify

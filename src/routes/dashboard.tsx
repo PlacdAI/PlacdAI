@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
 import { STYLES, type Product } from "@/lib/types";
-import { streamImage } from "@/lib/streamImage";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import heroImage from "@/assets/room-hero.jpg";
 import logoMark from "@/assets/trimmy-PlacdAI-logo-official.png";
@@ -548,21 +547,68 @@ function Home() {
     const activePaletteColors = palette === "Custom" ? customColors : PALETTES.find((p) => p.name === palette)?.colors ?? [];
     let finalRoom: string | null = null;
     try {
-      finalRoom = await streamImage(
-        "/api/generate-room",
-        {
+      const startRes = await apiFetch("/api/start-generation", {
+        method: "POST",
+        body: JSON.stringify({
           roomImage,
           style: effectiveStyle,
           roomType: effectiveRoomType,
           palette: palette === "Custom" ? `Custom (${customColors.join(", ")})` : palette,
           paletteColors: activePaletteColors,
           prompt: visionPrompt.trim() || undefined,
-        },
-        (dataUrl, final) => {
-          setCanvasImage(dataUrl);
-          if (final) setIsFinal(true);
-        },
-      );
+        }),
+      });
+      const { generationId, error } = (await startRes.json()) as {
+        generationId?: string;
+        error?: string;
+      };
+      if (error || !generationId) throw new Error(error || "Could not start generation");
+
+      // /api/generate-room used to stream progressive blur→sharp frames via
+      // streamImage's onChunk callback (the setCanvasImage call that used to
+      // be here). That's dropped for now — Netlify's Background Function
+      // can't hold a connection open to stream to, so this just waits for
+      // one 'done' row instead. Can rebuild a progressive feel later via
+      // multiple small Realtime UPDATEs if wanted.
+      finalRoom = await new Promise<string>((resolve, reject) => {
+        // 60s is a UI-side patience limit, not the Background Function's
+        // real ceiling (Netlify allows up to 15 min there). If Gemini is
+        // just slow, the row still flips to 'done' after we've stopped
+        // listening — the user can hit Generate again rather than stare at
+        // an indefinite spinner.
+        const timeoutId = setTimeout(() => {
+          channel.unsubscribe();
+          reject(new Error("Generation is taking longer than expected — please try again."));
+        }, 60_000);
+
+        const channel = supabase
+          .channel(`generation-${generationId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "generations",
+              filter: `id=eq.${generationId}`,
+            },
+            (payload) => {
+              const row = payload.new as { status: string; result_url?: string; error?: string };
+              if (row.status === "done" && row.result_url) {
+                clearTimeout(timeoutId);
+                channel.unsubscribe();
+                resolve(row.result_url);
+              } else if (row.status === "failed") {
+                clearTimeout(timeoutId);
+                channel.unsubscribe();
+                reject(new Error(row.error || "Generation failed"));
+              }
+            },
+          )
+          .subscribe();
+      });
+
+      setCanvasImage(finalRoom);
+      setIsFinal(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(`Room generation failed: ${msg}`);

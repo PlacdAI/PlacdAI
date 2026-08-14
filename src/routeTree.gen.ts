@@ -9,37 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as BuyCreditsRouteImport } from './routes/buy-credits'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as ApiConsumeCreditRouteImport } from './routes/api/consume-credit'
-import { Route as ApiCreateCheckoutRouteImport } from './routes/api/create-checkout'
-import { Route as ApiDebugShopLookRouteImport } from './routes/api/debug-shop-look'
-import { Route as ApiDeleteGenerationRouteImport } from './routes/api/delete-generation'
-import { Route as ApiDetectFurnitureRouteImport } from './routes/api/detect-furniture'
-import { Route as ApiGenerateRoomRouteImport } from './routes/api/generate-room'
-import { Route as ApiListGenerationsRouteImport } from './routes/api/list-generations'
-import { Route as ApiMeRouteImport } from './routes/api/me'
-import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
-import { Route as ApiSaveGenerationRouteImport } from './routes/api/save-generation'
+import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as BuyCreditsRouteImport } from './routes/buy-credits'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
+import { Route as ApiStartGenerationRouteImport } from './routes/api/start-generation'
+import { Route as ApiSaveGenerationRouteImport } from './routes/api/save-generation'
+import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
+import { Route as ApiMeRouteImport } from './routes/api/me'
+import { Route as ApiListGenerationsRouteImport } from './routes/api/list-generations'
+import { Route as ApiGenerateRoomRouteImport } from './routes/api/generate-room'
+import { Route as ApiDetectFurnitureRouteImport } from './routes/api/detect-furniture'
+import { Route as ApiDeleteGenerationRouteImport } from './routes/api/delete-generation'
+import { Route as ApiDebugShopLookRouteImport } from './routes/api/debug-shop-look'
+import { Route as ApiCreateCheckoutRouteImport } from './routes/api/create-checkout'
+import { Route as ApiConsumeCreditRouteImport } from './routes/api/consume-credit'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BuyCreditsRoute = BuyCreditsRouteImport.update({
-  id: '/buy-credits',
-  path: '/buy-credits',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GalleryRoute = GalleryRouteImport.update({
@@ -47,54 +38,29 @@ const GalleryRoute = GalleryRouteImport.update({
   path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiConsumeCreditRoute = ApiConsumeCreditRouteImport.update({
-  id: '/api/consume-credit',
-  path: '/api/consume-credit',
+const BuyCreditsRoute = BuyCreditsRouteImport.update({
+  id: '/buy-credits',
+  path: '/buy-credits',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiCreateCheckoutRoute = ApiCreateCheckoutRouteImport.update({
-  id: '/api/create-checkout',
-  path: '/api/create-checkout',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDebugShopLookRoute = ApiDebugShopLookRouteImport.update({
-  id: '/api/debug-shop-look',
-  path: '/api/debug-shop-look',
+const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
+  id: '/api/swap-product',
+  path: '/api/swap-product',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDeleteGenerationRoute = ApiDeleteGenerationRouteImport.update({
-  id: '/api/delete-generation',
-  path: '/api/delete-generation',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDetectFurnitureRoute = ApiDetectFurnitureRouteImport.update({
-  id: '/api/detect-furniture',
-  path: '/api/detect-furniture',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiGenerateRoomRoute = ApiGenerateRoomRouteImport.update({
-  id: '/api/generate-room',
-  path: '/api/generate-room',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiListGenerationsRoute = ApiListGenerationsRouteImport.update({
-  id: '/api/list-generations',
-  path: '/api/list-generations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMeRoute = ApiMeRouteImport.update({
-  id: '/api/me',
-  path: '/api/me',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPickProductsRoute = ApiPickProductsRouteImport.update({
-  id: '/api/pick-products',
-  path: '/api/pick-products',
+const ApiStartGenerationRoute = ApiStartGenerationRouteImport.update({
+  id: '/api/start-generation',
+  path: '/api/start-generation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSaveGenerationRoute = ApiSaveGenerationRouteImport.update({
@@ -102,9 +68,49 @@ const ApiSaveGenerationRoute = ApiSaveGenerationRouteImport.update({
   path: '/api/save-generation',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
-  id: '/api/swap-product',
-  path: '/api/swap-product',
+const ApiPickProductsRoute = ApiPickProductsRouteImport.update({
+  id: '/api/pick-products',
+  path: '/api/pick-products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeRoute = ApiMeRouteImport.update({
+  id: '/api/me',
+  path: '/api/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiListGenerationsRoute = ApiListGenerationsRouteImport.update({
+  id: '/api/list-generations',
+  path: '/api/list-generations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGenerateRoomRoute = ApiGenerateRoomRouteImport.update({
+  id: '/api/generate-room',
+  path: '/api/generate-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDetectFurnitureRoute = ApiDetectFurnitureRouteImport.update({
+  id: '/api/detect-furniture',
+  path: '/api/detect-furniture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDeleteGenerationRoute = ApiDeleteGenerationRouteImport.update({
+  id: '/api/delete-generation',
+  path: '/api/delete-generation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugShopLookRoute = ApiDebugShopLookRouteImport.update({
+  id: '/api/debug-shop-look',
+  path: '/api/debug-shop-look',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCreateCheckoutRoute = ApiCreateCheckoutRouteImport.update({
+  id: '/api/create-checkout',
+  path: '/api/create-checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConsumeCreditRoute = ApiConsumeCreditRouteImport.update({
+  id: '/api/consume-credit',
+  path: '/api/consume-credit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
+  '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
+  '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/api/me': typeof ApiMeRoute
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
+  '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/me'
     | '/api/pick-products'
     | '/api/save-generation'
+    | '/api/start-generation'
     | '/api/swap-product'
     | '/api/public/stripe-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/api/me'
     | '/api/pick-products'
     | '/api/save-generation'
+    | '/api/start-generation'
     | '/api/swap-product'
     | '/api/public/stripe-webhook'
   id:
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/me'
     | '/api/pick-products'
     | '/api/save-generation'
+    | '/api/start-generation'
     | '/api/swap-product'
     | '/api/public/stripe-webhook'
   fileRoutesById: FileRoutesById
@@ -247,31 +259,18 @@ export interface RootRouteChildren {
   ApiMeRoute: typeof ApiMeRoute
   ApiPickProductsRoute: typeof ApiPickProductsRoute
   ApiSaveGenerationRoute: typeof ApiSaveGenerationRoute
+  ApiStartGenerationRoute: typeof ApiStartGenerationRoute
   ApiSwapProductRoute: typeof ApiSwapProductRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/buy-credits': {
-      id: '/buy-credits'
-      path: '/buy-credits'
-      fullPath: '/buy-credits'
-      preLoaderRoute: typeof BuyCreditsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gallery': {
@@ -281,74 +280,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/consume-credit': {
-      id: '/api/consume-credit'
-      path: '/api/consume-credit'
-      fullPath: '/api/consume-credit'
-      preLoaderRoute: typeof ApiConsumeCreditRouteImport
+    '/buy-credits': {
+      id: '/buy-credits'
+      path: '/buy-credits'
+      fullPath: '/buy-credits'
+      preLoaderRoute: typeof BuyCreditsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/create-checkout': {
-      id: '/api/create-checkout'
-      path: '/api/create-checkout'
-      fullPath: '/api/create-checkout'
-      preLoaderRoute: typeof ApiCreateCheckoutRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/debug-shop-look': {
-      id: '/api/debug-shop-look'
-      path: '/api/debug-shop-look'
-      fullPath: '/api/debug-shop-look'
-      preLoaderRoute: typeof ApiDebugShopLookRouteImport
+    '/api/swap-product': {
+      id: '/api/swap-product'
+      path: '/api/swap-product'
+      fullPath: '/api/swap-product'
+      preLoaderRoute: typeof ApiSwapProductRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/delete-generation': {
-      id: '/api/delete-generation'
-      path: '/api/delete-generation'
-      fullPath: '/api/delete-generation'
-      preLoaderRoute: typeof ApiDeleteGenerationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/detect-furniture': {
-      id: '/api/detect-furniture'
-      path: '/api/detect-furniture'
-      fullPath: '/api/detect-furniture'
-      preLoaderRoute: typeof ApiDetectFurnitureRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/generate-room': {
-      id: '/api/generate-room'
-      path: '/api/generate-room'
-      fullPath: '/api/generate-room'
-      preLoaderRoute: typeof ApiGenerateRoomRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/list-generations': {
-      id: '/api/list-generations'
-      path: '/api/list-generations'
-      fullPath: '/api/list-generations'
-      preLoaderRoute: typeof ApiListGenerationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/me': {
-      id: '/api/me'
-      path: '/api/me'
-      fullPath: '/api/me'
-      preLoaderRoute: typeof ApiMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/pick-products': {
-      id: '/api/pick-products'
-      path: '/api/pick-products'
-      fullPath: '/api/pick-products'
-      preLoaderRoute: typeof ApiPickProductsRouteImport
+    '/api/start-generation': {
+      id: '/api/start-generation'
+      path: '/api/start-generation'
+      fullPath: '/api/start-generation'
+      preLoaderRoute: typeof ApiStartGenerationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/save-generation': {
@@ -358,11 +322,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSaveGenerationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/swap-product': {
-      id: '/api/swap-product'
-      path: '/api/swap-product'
-      fullPath: '/api/swap-product'
-      preLoaderRoute: typeof ApiSwapProductRouteImport
+    '/api/pick-products': {
+      id: '/api/pick-products'
+      path: '/api/pick-products'
+      fullPath: '/api/pick-products'
+      preLoaderRoute: typeof ApiPickProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me': {
+      id: '/api/me'
+      path: '/api/me'
+      fullPath: '/api/me'
+      preLoaderRoute: typeof ApiMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/list-generations': {
+      id: '/api/list-generations'
+      path: '/api/list-generations'
+      fullPath: '/api/list-generations'
+      preLoaderRoute: typeof ApiListGenerationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/generate-room': {
+      id: '/api/generate-room'
+      path: '/api/generate-room'
+      fullPath: '/api/generate-room'
+      preLoaderRoute: typeof ApiGenerateRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/detect-furniture': {
+      id: '/api/detect-furniture'
+      path: '/api/detect-furniture'
+      fullPath: '/api/detect-furniture'
+      preLoaderRoute: typeof ApiDetectFurnitureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/delete-generation': {
+      id: '/api/delete-generation'
+      path: '/api/delete-generation'
+      fullPath: '/api/delete-generation'
+      preLoaderRoute: typeof ApiDeleteGenerationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug-shop-look': {
+      id: '/api/debug-shop-look'
+      path: '/api/debug-shop-look'
+      fullPath: '/api/debug-shop-look'
+      preLoaderRoute: typeof ApiDebugShopLookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/create-checkout': {
+      id: '/api/create-checkout'
+      path: '/api/create-checkout'
+      fullPath: '/api/create-checkout'
+      preLoaderRoute: typeof ApiCreateCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/consume-credit': {
+      id: '/api/consume-credit'
+      path: '/api/consume-credit'
+      fullPath: '/api/consume-credit'
+      preLoaderRoute: typeof ApiConsumeCreditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/stripe-webhook': {
@@ -391,6 +411,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMeRoute: ApiMeRoute,
   ApiPickProductsRoute: ApiPickProductsRoute,
   ApiSaveGenerationRoute: ApiSaveGenerationRoute,
+  ApiStartGenerationRoute: ApiStartGenerationRoute,
   ApiSwapProductRoute: ApiSwapProductRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
 }

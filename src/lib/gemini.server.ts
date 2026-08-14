@@ -329,3 +329,20 @@ export function dataUrlToInline(dataUrl: string): {
   if (!m) throw new Error("Invalid data URL");
   return { mimeType: m[1], data: m[2] };
 }
+
+// ─────────────────────────────────────────────────────────────
+// Added for the Background Function rebuild: generate-room's result is now
+// a Supabase Storage public URL (kept small on purpose so Realtime payloads
+// don't carry a multi-MB image), not always a base64 data URL like before.
+// swap-product.ts and save-generation.ts both still work in data URLs
+// internally (dataUrlToInline, the data-URL regex check) — this is the one
+// place that bridges the two shapes, so neither route has to duplicate the
+// fetch-and-convert logic itself.
+/** If `image` is already a data URL, return it unchanged. Otherwise treat
+ * it as a remote URL (e.g. a Supabase Storage public URL), fetch it, and
+ * convert it into a data URL. */
+export async function ensureDataUrl(image: string): Promise<string> {
+  if (image.startsWith("data:")) return image;
+  const { mimeType, data } = await fetchImageAsInline(image);
+  return `data:${mimeType};base64,${data}`;
+}
