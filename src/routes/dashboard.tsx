@@ -58,6 +58,7 @@ function cropImageRegion(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const sx = (bbox.xPct / 100) * img.naturalWidth;
       const sy = (bbox.yPct / 100) * img.naturalHeight;
