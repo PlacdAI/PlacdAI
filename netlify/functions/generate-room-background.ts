@@ -18,7 +18,7 @@
 // nothing is listening on an open connection to stream to.
 import type { Handler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
-import { dataUrlToInline, geminiImageEdit } from "../../src/lib/gemini.server";
+import { dataUrlToInline, ensureDataUrl, geminiImageEdit } from "../../src/lib/gemini.server";
 
 interface Payload {
   generationId: string;
@@ -58,7 +58,12 @@ export const handler: Handler = async (event) => {
   );
 
   try {
-    const inline = dataUrlToInline(roomImage);
+    // 🔧 roomImage is now a Storage public URL (start-generation.ts
+    // uploads the photo there to dodge Netlify's ~6MB body limit) instead
+    // of a raw base64 data URL — ensureDataUrl fetches it and converts to
+    // a data URL if it isn't already one, same helper swap-product-
+    // background.ts already uses for the same reason.
+    const inline = dataUrlToInline(await ensureDataUrl(roomImage));
 
     const paletteLine =
       paletteColors && paletteColors.length > 0

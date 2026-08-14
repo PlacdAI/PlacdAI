@@ -41,6 +41,34 @@ export const Route = createFileRoute("/api/start-generation")({
           }
           const generationId = ins.data.id as string;
 
+          // 🔧 Root cause of the mobile-only 413s: this route used to pass
+          // body.roomImage (raw base64) straight through to
+          // generate-room-background's POST body. Netlify Functions cap
+          // request bodies at ~6MB; a base64-encoded phone camera photo
+          // routinely exceeds that (desktop test images happened to stay
+          // under it, which is why this only broke on phones). Fix: upload
+          // the photo to Storage here and hand the background function a
+          // tiny URL instead of the multi-MB blob.
+          const uploadMatch = body.roomImage.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+          if (!uploadMatch) {
+            return Response.json({ error: "Invalid room image format" }, { status: 400 });
+          }
+          const uploadMime = uploadMatch[1];
+          const uploadExt = uploadMime.split("/")[1].replace("+xml", "");
+          const uploadBytes = Uint8Array.from(atob(uploadMatch[2]), (c) => c.charCodeAt(0));
+          const uploadPath = `input-${generationId}.${uploadExt}`;
+
+          const inputUpload = await admin.storage
+            .from("generations")
+            .upload(uploadPath, uploadBytes, { contentType: uploadMime, upsert: true });
+          if (inputUpload.error) {
+            return Response.json(
+              { error: `Could not upload room photo: ${inputUpload.error.message}` },
+              { status: 500 },
+            );
+          }
+          const { data: inputPub } = admin.storage.from("generations").getPublicUrl(uploadPath);
+
           // 🔧 Was fire-and-forget (fetch not awaited). Netlify freezes the
           // execution environment the instant this handler returns — an
           // in-flight, un-awaited fetch can get frozen mid-send rather than
@@ -56,7 +84,12 @@ export const Route = createFileRoute("/api/start-generation")({
             await fetch(`${base}/.netlify/functions/generate-room-background`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ generationId, userId: user.id, ...body }),
+              body: JSON.stringify({
+                generationId,
+                userId: user.id,
+                ...body,
+                roomImage: inputPub.publicUrl, // tiny URL, not the raw base64 photo
+              }),
             });
           } catch (e) {
             console.error("Failed to invoke generate-room-background:", e);
