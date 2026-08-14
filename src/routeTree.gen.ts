@@ -15,7 +15,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BuyCreditsRouteImport } from './routes/buy-credits'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSwapProductStartRouteImport } from './routes/api/swap-product-start'
-import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
 import { Route as ApiStartGenerationRouteImport } from './routes/api/start-generation'
 import { Route as ApiSaveGenerationRouteImport } from './routes/api/save-generation'
 import { Route as ApiPickProductsRouteImport } from './routes/api/pick-products'
@@ -57,11 +56,6 @@ const IndexRoute = IndexRouteImport.update({
 const ApiSwapProductStartRoute = ApiSwapProductStartRouteImport.update({
   id: '/api/swap-product-start',
   path: '/api/swap-product-start',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
-  id: '/api/swap-product',
-  path: '/api/swap-product',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStartGenerationRoute = ApiStartGenerationRouteImport.update({
@@ -142,7 +136,6 @@ export interface FileRoutesByFullPath {
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
-  '/api/swap-product': typeof ApiSwapProductRoute
   '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -163,7 +156,6 @@ export interface FileRoutesByTo {
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
-  '/api/swap-product': typeof ApiSwapProductRoute
   '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -185,7 +177,6 @@ export interface FileRoutesById {
   '/api/pick-products': typeof ApiPickProductsRoute
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
-  '/api/swap-product': typeof ApiSwapProductRoute
   '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
@@ -208,7 +199,6 @@ export interface FileRouteTypes {
     | '/api/pick-products'
     | '/api/save-generation'
     | '/api/start-generation'
-    | '/api/swap-product'
     | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -229,7 +219,6 @@ export interface FileRouteTypes {
     | '/api/pick-products'
     | '/api/save-generation'
     | '/api/start-generation'
-    | '/api/swap-product'
     | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   id:
@@ -250,7 +239,6 @@ export interface FileRouteTypes {
     | '/api/pick-products'
     | '/api/save-generation'
     | '/api/start-generation'
-    | '/api/swap-product'
     | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   fileRoutesById: FileRoutesById
@@ -272,7 +260,6 @@ export interface RootRouteChildren {
   ApiPickProductsRoute: typeof ApiPickProductsRoute
   ApiSaveGenerationRoute: typeof ApiSaveGenerationRoute
   ApiStartGenerationRoute: typeof ApiStartGenerationRoute
-  ApiSwapProductRoute: typeof ApiSwapProductRoute
   ApiSwapProductStartRoute: typeof ApiSwapProductStartRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
 }
@@ -319,13 +306,6 @@ declare module '@tanstack/react-router' {
       path: '/api/swap-product-start'
       fullPath: '/api/swap-product-start'
       preLoaderRoute: typeof ApiSwapProductStartRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/swap-product': {
-      id: '/api/swap-product'
-      path: '/api/swap-product'
-      fullPath: '/api/swap-product'
-      preLoaderRoute: typeof ApiSwapProductRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/start-generation': {
@@ -432,7 +412,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPickProductsRoute: ApiPickProductsRoute,
   ApiSaveGenerationRoute: ApiSaveGenerationRoute,
   ApiStartGenerationRoute: ApiStartGenerationRoute,
-  ApiSwapProductRoute: ApiSwapProductRoute,
   ApiSwapProductStartRoute: ApiSwapProductStartRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
 }
