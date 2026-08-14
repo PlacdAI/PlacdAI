@@ -124,6 +124,67 @@ function useContainRect(
   return rect;
 }
 
+/**
+ * Starts an async product-swap job and resolves once its product_swaps
+ * row flips to 'done' — same start+Realtime-subscribe pattern generate()
+ * already uses for room generation, now shared by both the main
+ * generate() swap call and the single-item retryProduct() call so the
+ * two don't duplicate the channel-subscription logic.
+ */
+async function runProductSwap({
+  currentRoomImage,
+  productIds,
+  isRetry = false,
+}: {
+  currentRoomImage: string;
+  productIds: string[];
+  isRetry?: boolean;
+}): Promise<{ image: string; products: Product[] }> {
+  const startRes = await apiFetch("/api/swap-product-start", {
+    method: "POST",
+    body: JSON.stringify({ currentRoomImage, productIds, isRetry }),
+  });
+  const { swapId, error } = (await startRes.json()) as { swapId?: string; error?: string };
+  if (error || !swapId) throw new Error(error || "Could not start product placement");
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      channel.unsubscribe();
+      reject(new Error("Placing products is taking longer than expected — please try again."));
+    }, 60_000);
+
+    const channel = supabase
+      .channel(`product-swap-${swapId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "product_swaps",
+          filter: `id=eq.${swapId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            status: string;
+            result_url?: string;
+            products?: Product[];
+            error?: string;
+          };
+          if (row.status === "done" && row.result_url) {
+            clearTimeout(timeoutId);
+            channel.unsubscribe();
+            resolve({ image: row.result_url, products: row.products ?? [] });
+          } else if (row.status === "failed") {
+            clearTimeout(timeoutId);
+            channel.unsubscribe();
+            reject(new Error(row.error || "Placing products failed"));
+          }
+        },
+      )
+      .subscribe();
+  });
+}
+
 // ── Color math for the custom color picker (no external deps) ──
 function hexToRgb(hex: string) {
   const clean = hex.replace("#", "").padEnd(6, "0").slice(0, 6);
@@ -628,29 +689,17 @@ function Home() {
       );
       setIsFinal(false);
       try {
-        const res = await fetch("/api/swap-product", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            currentRoomImage: finalRoom,
-            productIds: batch.map((p) => p.id),
-          }),
+        const { image, products: swapped } = await runProductSwap({
+          currentRoomImage: finalRoom,
+          productIds: batch.map((p) => p.id),
         });
-        const j = (await res.json()) as {
-          image?: string;
-          products?: Product[];
-          error?: string;
-        };
-        if (j.error) throw new Error(j.error);
-        if (j.image) {
-          finalRoom = j.image;
-          setCanvasImage(j.image);
-        }
+        finalRoom = image;
+        setCanvasImage(image);
         // The backend resolves productIds against Supabase and returns the
         // canonical records for whatever it actually placed in the image —
         // use those (not the raw AI picks) so the sidebar always matches
         // what's really shown, with correct price/imageUrl/productUrl.
-        finalProducts = j.products && j.products.length > 0 ? j.products : batch;
+        finalProducts = swapped.length > 0 ? swapped : batch;
         setProducts(finalProducts);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -713,23 +762,13 @@ function Home() {
 
     setRetryingProductId(product.id);
     try {
-      const res = await fetch("/api/swap-product", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentRoomImage: canvasImage,
-          productIds: [product.id],
-          isRetry: true,
-        }),
+      const { image, products: swapped } = await runProductSwap({
+        currentRoomImage: canvasImage,
+        productIds: [product.id],
+        isRetry: true,
       });
-      const j = (await res.json()) as {
-        image?: string;
-        products?: Product[];
-        error?: string;
-      };
-      if (j.error) throw new Error(j.error);
-      if (j.image) setCanvasImage(j.image);
-      const updated = j.products?.[0];
+      setCanvasImage(image);
+      const updated = swapped[0];
       if (updated) {
         setProducts((current) => current.map((p) => (p.id === updated.id ? updated : p)));
         toast[updated.verified ? "success" : "message"]?.(

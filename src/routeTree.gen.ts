@@ -14,6 +14,7 @@ import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BuyCreditsRouteImport } from './routes/buy-credits'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSwapProductStartRouteImport } from './routes/api/swap-product-start'
 import { Route as ApiSwapProductRouteImport } from './routes/api/swap-product'
 import { Route as ApiStartGenerationRouteImport } from './routes/api/start-generation'
 import { Route as ApiSaveGenerationRouteImport } from './routes/api/save-generation'
@@ -51,6 +52,11 @@ const BuyCreditsRoute = BuyCreditsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSwapProductStartRoute = ApiSwapProductStartRouteImport.update({
+  id: '/api/swap-product-start',
+  path: '/api/swap-product-start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSwapProductRoute = ApiSwapProductRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesById {
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/api/save-generation': typeof ApiSaveGenerationRoute
   '/api/start-generation': typeof ApiStartGenerationRoute
   '/api/swap-product': typeof ApiSwapProductRoute
+  '/api/swap-product-start': typeof ApiSwapProductStartRoute
   '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRouteTypes {
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/api/save-generation'
     | '/api/start-generation'
     | '/api/swap-product'
+    | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/api/save-generation'
     | '/api/start-generation'
     | '/api/swap-product'
+    | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   id:
     | '__root__'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/api/save-generation'
     | '/api/start-generation'
     | '/api/swap-product'
+    | '/api/swap-product-start'
     | '/api/public/stripe-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -261,6 +273,7 @@ export interface RootRouteChildren {
   ApiSaveGenerationRoute: typeof ApiSaveGenerationRoute
   ApiStartGenerationRoute: typeof ApiStartGenerationRoute
   ApiSwapProductRoute: typeof ApiSwapProductRoute
+  ApiSwapProductStartRoute: typeof ApiSwapProductStartRoute
   ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
 }
 
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/swap-product-start': {
+      id: '/api/swap-product-start'
+      path: '/api/swap-product-start'
+      fullPath: '/api/swap-product-start'
+      preLoaderRoute: typeof ApiSwapProductStartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/swap-product': {
@@ -413,6 +433,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSaveGenerationRoute: ApiSaveGenerationRoute,
   ApiStartGenerationRoute: ApiStartGenerationRoute,
   ApiSwapProductRoute: ApiSwapProductRoute,
+  ApiSwapProductStartRoute: ApiSwapProductStartRoute,
   ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
