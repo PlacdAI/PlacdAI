@@ -19,6 +19,7 @@
 import type { Handler } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 import { dataUrlToInline, ensureDataUrl, geminiImageEdit } from "../../src/lib/gemini.server";
+import { isSmallTransitionalSpace } from "../../src/lib/spaceClassification.server";
 
 interface Payload {
   generationId: string;
@@ -62,8 +63,11 @@ export const handler: Handler = async (event) => {
     // uploads the photo there to dodge Netlify's ~6MB body limit) instead
     // of a raw base64 data URL — ensureDataUrl fetches it and converts to
     // a data URL if it isn't already one, same helper swap-product-
-    // background.ts already uses for the same reason.
-    const inline = dataUrlToInline(await ensureDataUrl(roomImage));
+    // background.ts already uses for the same reason. Resolved once here
+    // so both the classification call below and the main edit call reuse
+    // the same data URL instead of fetching the Storage image twice.
+    const roomDataUrl = await ensureDataUrl(roomImage);
+    const inline = dataUrlToInline(roomDataUrl);
 
     const paletteLine =
       paletteColors && paletteColors.length > 0
@@ -77,6 +81,38 @@ export const handler: Handler = async (event) => {
         ? `\n\nAdditional instructions from the user — follow these closely, they take priority over the general style direction above (but never override the STRICT RULES below): ${prompt.trim()}`
         : "";
 
+    // 🔧 Small-space detection, two layers:
+    // 1. Keyword check on the user's own prompt text (cheap, no API call)
+    //    — kept as a fast-path since it's free when it hits.
+    // 2. Photo-based classification (isSmallTransitionalSpace) — added
+    //    after keyword-only detection proved unreliable: a user typed
+    //    "decorate this area" (no size word at all) on a stair landing
+    //    and still got a full-size dresser. This looks at the actual
+    //    photo instead of hoping the right adjective shows up in the
+    //    prompt. Only called when the keyword check didn't already
+    //    trigger, so the extra (cheap, lite-model) API cost is only paid
+    //    when actually needed — most full-room generations skip it
+    //    entirely once the keyword or photo signal says "not small."
+    const smallSpaceKeywords =
+      /\b(small|tiny|narrow|tight|compact|nook|corner|landing|portion|niche|alcove|hallway|entryway|stairwell|stair\s*case|transitional)\b/i;
+    const isSmallSpaceByKeyword = !!prompt && smallSpaceKeywords.test(prompt);
+    const isSmallSpace =
+      isSmallSpaceByKeyword || (await isSmallTransitionalSpace(roomDataUrl));
+
+    const smallSpaceBlock = isSmallSpace
+      ? `
+
+SPACE-SIZE OVERRIDE (this is a small or transitional area, not a full room):
+Based on the photo itself and/or the user's own description, this space is small or transitional — e.g. a stair landing, hallway corner, entryway nook, or narrow alcove. Treat this as a hard constraint, not a suggestion: this space almost certainly cannot fit large case-goods furniture (dressers, cabinets, credenzas, bookshelves, large seating).
+Examples of what NOT to do here:
+- WRONG: adding a multi-drawer dresser or chest into a stair landing or narrow hallway corner.
+- WRONG: adding a large armchair or sofa into a tight transitional nook.
+Examples of what TO do instead:
+- RIGHT: a single vase with florals, a small potted plant, one or two framed art pieces on the wall, a slim wall sconce or small table lamp, a small round accent table, or a mirror.
+- RIGHT: if genuinely nothing realistically fits the visible footprint, add only a single small decor accent, or leave it minimally styled rather than adding furniture.
+Do not add anything larger than a small accent table in this space, regardless of the style direction above.`
+      : "";
+
     // Same prompt text as the original generate-room.ts — unchanged so the
     // actual design output doesn't shift as a side effect of this rebuild.
     const resultDataUrl = await geminiImageEdit({
@@ -86,16 +122,19 @@ export const handler: Handler = async (event) => {
           text: `The attached image is a real photo of a room. You are an image editor, not an image generator.
 
 CRITICAL EDITING INSTRUCTIONS:
-Do NOT generate a new room or reinterpret the space. Your job is to redecorate the EXISTING space shown in the attached photo, editing that exact photo in place. This can include removing or replacing existing furniture and decor with new ${style} pieces — you are not limited to filling empty space.
+Do NOT generate a new room or reinterpret the space. Your job is to redecorate the EXISTING space shown in the attached photo, editing that exact photo in place. This can include removing or replacing existing furniture and decor with new ${style} pieces where appropriate — but only add something if it realistically belongs in this specific space (see rule 5 on scale below). Leaving a small or awkward area sparser, or decorated with only small accents, is better than forcing in furniture that doesn't fit.
 
-Design direction: furnish it as a ${roomType ?? "living room"} in a ${style} style. ${paletteLine}${userLine}
+Design direction: furnish it as a ${roomType ?? "living room"} in a ${style} style. ${paletteLine}${userLine}${smallSpaceBlock}
 
 STRICT RULES:
 1. Preserve the room's exact walls, windows, flooring, ceiling, ceiling height, ceiling fixtures, and camera angle/perspective 100% as they appear in the input photo. Do not shift, crop, re-frame, or rebuild any part of the room's structure.
 2. Do not change the room's proportions or invent architectural features that aren't in the source photo.
 3. You may remove, replace, or add furniture and decor anywhere in the room to satisfy the style, palette, and user instructions above — just never touch the structural elements from rule 1.
 4. Keep the room's lighting direction and shadows consistent with the original photo; you may shift color temperature and tone as needed to match the requested palette.
-5. Photorealistic, high detail, seamlessly composited into the original photo.`,
+5. SCALE TO THE ACTUAL SPACE: judge the real available floor and wall footprint from the photo before choosing what to add — a narrow landing, stair nook, hallway corner, or otherwise tight/transitional area has no room for large case-goods (dressers, cabinets, credenzas, large seating). For spaces like that, furnish only with pieces that realistically fit the footprint: a small accent table, a vase, a plant, wall art, a mirror, a sconce, a slim console at most. Reserve larger furniture for spaces that are clearly a full room with real open floor area. When in doubt about whether something fits, choose the smaller, more plausible option.
+6. AVOID REPEATING THE SAME SIGNATURE PIECE: don't default to the same "obvious" item for a given style every time (e.g. always reaching for a rattan-front chest of drawers for "mid-century modern"). Vary your choices across the style's real range — seating, tables, lighting, textiles, art, plants, mirrors, storage — and pick whichever of those genuinely suits the specific space in this photo, not just the most stereotypical item for the style.
+7. REALISTIC PROPORTIONS: since you are inventing the exact dimensions of anything you add (there is no specific real product being referenced here), stick to proportions that match what that type of item actually looks like in real life. Framed wall art in particular is typically square to moderately landscape/portrait — not an unusually narrow, elongated sliver — unless the user specifically asked for a slim/narrow piece. The same applies to any other added item: keep its width-to-height ratio within the normal real-world range for that object type.
+8. Photorealistic, high detail, seamlessly composited into the original photo.`,
         },
       ],
     });
