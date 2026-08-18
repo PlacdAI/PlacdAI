@@ -12,7 +12,10 @@ const PRICE_ENV: Record<string, string> = {
   "120": "STRIPE_PRICE_120",
 };
 
-const CREDITS: Record<string, number> = { "20": 20, "60": 60, "120": 120 };
+// NOTE: env var names still say 20/60/120 (old tiers) but now map to the
+// new credit counts below. Rename the env vars too if you want the names
+// to stay meaningful — not required for the code to work correctly.
+const CREDITS: Record<string, number> = { "20": 10, "60": 30, "120": 65 };
 
 export const Route = createFileRoute("/api/create-checkout")({
   server: {
