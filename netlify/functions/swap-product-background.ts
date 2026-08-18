@@ -16,7 +16,13 @@ import {
 } from "../../src/lib/gemini.server";
 import { fetchProductsByIds } from "../../src/lib/supabase.server";
 import { detectFurniture } from "../../src/lib/furnitureDetection.server";
-import { itemMatchesProduct, type DetectedItem } from "../../src/lib/furnitureMatching";
+import {
+  categoryGroupsOverlap,
+  isMultiPieceProduct,
+  itemMatchesProduct,
+  sameRow,
+  type DetectedItem,
+} from "../../src/lib/furnitureMatching";
 import type { Product } from "../../src/lib/types";
 
 interface Payload {
@@ -67,7 +73,7 @@ async function placeAndVerify(
   isRetry: boolean,
   locationHint: string | null,
   expectedBox: DetectedItem["bbox"] | null,
-): Promise<{ image: string; verified: boolean; placedBox: DetectedItem["bbox"] | null }> {
+): Promise<{ image: string; verified: boolean; placedBoxes: DetectedItem["bbox"][] }> {
   const roomInline = dataUrlToInline(baseImage);
   const productInline = await fetchImageAsInline(p.imageUrl);
 
@@ -80,17 +86,39 @@ async function placeAndVerify(
   });
 
   let verified = false;
-  let placedBox: DetectedItem["bbox"] | null = null;
+  let placedBoxes: DetectedItem["bbox"][] = [];
   try {
     const items = await detectFurniture(edited);
     const match = items.find((item) => itemMatchesProduct(item, p, expectedBox ?? undefined));
     verified = !!match;
-    placedBox = match?.bbox ?? null;
+    if (match) {
+      placedBoxes = [match.bbox];
+      // 🔧 Multi-piece products (wall-art sets, paired sconces/lamps)
+      // land as several separate detected panels even though they're one
+      // product. This is the moment we have every candidate box in hand
+      // (the full detectFurniture result on the just-edited image) — so
+      // capture every sibling panel now as verified ground truth, instead
+      // of trying to reconstruct "which other boxes belong to this
+      // product" later from a single remembered box, which is what let
+      // the wall-art set fall through to "AI-generated" before.
+      if (isMultiPieceProduct(p)) {
+        const matchCategory = match.category.toLowerCase();
+        for (const other of items) {
+          if (other === match) continue;
+          if (
+            categoryGroupsOverlap(matchCategory, other.category.toLowerCase()) &&
+            sameRow(other.bbox, match.bbox)
+          ) {
+            placedBoxes.push(other.bbox);
+          }
+        }
+      }
+    }
   } catch {
     verified = false;
   }
 
-  return { image: edited, verified, placedBox };
+  return { image: edited, verified, placedBoxes };
 }
 
 export const handler: Handler = async (event) => {
@@ -143,6 +171,13 @@ export const handler: Handler = async (event) => {
     let currentImage = currentRoomImage;
     const verifiedProducts: (Product & {
       verified: boolean;
+      // 🔧 placedBoxes (plural) is the new ground-truth source — every
+      // verified panel/piece this product occupies, used by
+      // furnitureMatching's matchDetectedItem for deterministic
+      // real/AI-generated classification. placedBox (singular, first
+      // box) is kept alongside it purely for backward compatibility with
+      // any existing consumers still reading the old field.
+      placedBoxes: DetectedItem["bbox"][];
       placedBox: DetectedItem["bbox"] | null;
     })[] = [];
 
@@ -154,7 +189,7 @@ export const handler: Handler = async (event) => {
 
       const locationHint = matched ? boundsText(matched) : null;
 
-      const { image, verified, placedBox } = await placeAndVerify(
+      const { image, verified, placedBoxes } = await placeAndVerify(
         baseImage,
         p,
         isRetry,
@@ -163,7 +198,7 @@ export const handler: Handler = async (event) => {
       );
 
       currentImage = image;
-      verifiedProducts.push({ ...p, verified, placedBox });
+      verifiedProducts.push({ ...p, verified, placedBoxes, placedBox: placedBoxes[0] ?? null });
     }
 
     // Upload the final composited image to the same "generations" working
