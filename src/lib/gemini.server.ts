@@ -1,55 +1,14 @@
 // ─────────────────────────────────────────────────────────────
 // Image + JSON model calls — SERVER SIDE ONLY
-//
-// 🔧🔧🔧  VSCODE SWAP POINT — READ THIS  🔧🔧🔧
+// Talks directly to the Google Gemini API using GEMINI_API_KEY.
 // ─────────────────────────────────────────────────────────────
-// This app can generate images two different ways:
-//
-//   USE_LOVABLE_GATEWAY = true   → Lovable AI Gateway
-//                                   Uses LOVABLE_API_KEY (auto-provisioned
-//                                   inside Lovable — you don't set anything).
-//                                   ✅ Use this while building in Lovable.
-//
-//   USE_LOVABLE_GATEWAY = false  → Direct Google Gemini API
-//                                   Uses GEMINI_API_KEY from your .env file.
-//                                   ✅ Use this after you export to VSCode.
-//
-// 👉 AFTER EXPORTING TO VSCODE:
-//    1. Change the line below to `false`
-//    2. Make sure GEMINI_API_KEY is filled in inside .env
-//    3. Done — no other file needs to change.
-//
-// Note: the product-picker JSON call (geminiJson, below) ALWAYS uses your
-// direct GEMINI_API_KEY — it's cheap and simpler to keep on one path.
-// So GEMINI_API_KEY should be set in Lovable too (already is via secrets).
-// ─────────────────────────────────────────────────────────────
-const USE_LOVABLE_GATEWAY = false;
 
 // Endpoints
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/images/generations";
-
-// Which Gemini image model the gateway should route to.
-//
-// 🔧 MODEL CHOICE — using gemini-3.1-flash-image ("Nano Banana 2"), NOT
-// the "-lite" variant. Google's own docs say the lite tier "is not
-// optimized for multiple reference inputs or advanced multi-turn
-// sequential editing" — which is exactly what this app does (room +
-// product reference images, chained sequential edits in swap-product.ts).
-// Non-lite 3.1 is still cheaper/faster than the old 2.5 model, just
-// without that specific limitation.
-// Options: google/gemini-2.5-flash-image, google/gemini-3-pro-image,
-//          google/gemini-3.1-flash-image, google/gemini-3.1-flash-lite-image
-const GATEWAY_IMAGE_MODEL = "google/gemini-3.1-flash-image";
 
 function geminiKey() {
   const k = process.env.GEMINI_API_KEY;
   if (!k) throw new Error("Missing GEMINI_API_KEY. Add it to .env.");
-  return k;
-}
-function lovableKey() {
-  const k = process.env.LOVABLE_API_KEY;
-  if (!k) throw new Error("Missing LOVABLE_API_KEY (should be auto-provisioned in Lovable).");
   return k;
 }
 
@@ -69,8 +28,7 @@ function lovableKey() {
 // Matches the status code out of our own error messages (all of which
 // are written as "<label> <status>: <body>", e.g. "Gemini generation
 // 429: ..." or "Gemini edit 503: ...") rather than hardcoding each
-// call site's exact wording, so this works unchanged regardless of which
-// function or path (gateway vs. direct) threw it.
+// call site's exact wording.
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 const MAX_RETRIES = 3;
 
@@ -104,8 +62,7 @@ export interface TextPart {
 export type Part = InlinePart | TextPart;
 
 // ─────────────────────────────────────────────────────────────
-// JSON generation (product picker, furniture detection). ALWAYS direct
-// Gemini — cheap text/JSON call, no image generation involved.
+// JSON generation (product picker, furniture detection).
 //
 // 🔧 MODEL PIN — do NOT default this to "gemini-flash-latest". That's a
 // Google *alias*, not a model — their docs say it "gets hot-swapped with
@@ -164,20 +121,6 @@ async function geminiJsonOnce<T>(opts: {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helpers to convert our Part[] into the two API shapes
-// ─────────────────────────────────────────────────────────────
-function partsToGatewayContent(parts: Part[]) {
-  // OpenAI-compatible messages content array (image_url + text parts).
-  return parts.map((p) => {
-    if ("text" in p) return { type: "text", text: p.text };
-    return {
-      type: "image_url",
-      image_url: { url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}` },
-    };
-  });
-}
-
-// ─────────────────────────────────────────────────────────────
 // Streaming image generation (used by /api/generate-room)
 // ─────────────────────────────────────────────────────────────
 export async function geminiImageStream(opts: {
@@ -191,24 +134,6 @@ async function geminiImageStreamOnce(opts: {
   parts: Part[];
   model?: string;
 }): Promise<Response> {
-  if (USE_LOVABLE_GATEWAY) {
-    const body = {
-      model: GATEWAY_IMAGE_MODEL,
-      messages: [{ role: "user", content: partsToGatewayContent(opts.parts) }],
-      modalities: ["image", "text"],
-      stream: true,
-    };
-    return fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-  }
-
-  // 🔧 DIRECT GEMINI PATH (VSCode) — uses GEMINI_API_KEY
   // gemini-2.5-flash-image uses generateContent for direct API calls
   const model = opts.model ?? "gemini-3.1-flash-image";
   const body = {
@@ -237,7 +162,7 @@ async function geminiImageStreamOnce(opts: {
 
 // ─────────────────────────────────────────────────────────────
 // Non-streaming image edit (used by /api/swap-product)
-// Returns a data URL string. Same on both backends.
+// Returns a data URL string.
 // ─────────────────────────────────────────────────────────────
 export async function geminiImageEdit(opts: {
   parts: Part[];
@@ -250,31 +175,6 @@ async function geminiImageEditOnce(opts: {
   parts: Part[];
   model?: string;
 }): Promise<string> {
-  if (USE_LOVABLE_GATEWAY) {
-    // 🔧 GATEWAY PATH (Lovable)
-    const body = {
-      model: GATEWAY_IMAGE_MODEL,
-      messages: [{ role: "user", content: partsToGatewayContent(opts.parts) }],
-      modalities: ["image", "text"],
-    };
-    const res = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Gateway edit ${res.status}: ${await res.text()}`);
-    const json = (await res.json()) as {
-      data?: { b64_json?: string }[];
-    };
-    const b64 = json.data?.[0]?.b64_json;
-    if (!b64) throw new Error("Gateway edit returned no image");
-    return `data:image/png;base64,${b64}`;
-  }
-
-  // 🔧 DIRECT GEMINI PATH (VSCode)
   const model = opts.model ?? "gemini-3.1-flash-image";
   const body = {
     contents: [{ role: "user", parts: opts.parts }],

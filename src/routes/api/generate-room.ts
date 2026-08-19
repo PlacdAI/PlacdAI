@@ -39,14 +39,29 @@ export const Route = createFileRoute("/api/generate-room")({
 
           const userLine =
             prompt && prompt.trim()
-              ? `\n\nAdditional instructions from the user — follow these closely, they take priority over the general style direction above (but never override the STRICT RULES below): ${prompt.trim()}`
+              ? `\n\nAdditional instructions from the user — these are a HARD CONSTRAINT, not a stylistic suggestion. If any part of this text excludes, forbids, or says not to include a specific item or category (e.g. "don't add a dresser"), you must never place that item anywhere in the output, even if it would otherwise be a natural fit for the requested style. These instructions override the general style direction above whenever the two conflict (but never override the STRICT RULES below): ${prompt.trim()}`
+              : "";
+
+          // Bookend technique: the same user constraint is restated at the
+          // very start (below) and again as the last line of the prompt.
+          // Models weight instructions at the start/end of a prompt more
+          // heavily than ones buried mid-paragraph — stating it twice is
+          // free (same API call, same token cost tier) and doesn't require
+          // an extra verification pass to meaningfully improve compliance.
+          const openingConstraint =
+            prompt && prompt.trim()
+              ? `IMPORTANT USER CONSTRAINT (read first — this governs everything below): ${prompt.trim()}\n\n`
+              : "";
+          const closingConstraint =
+            prompt && prompt.trim()
+              ? `\n\nFINAL REMINDER — before you generate, re-check the user's constraint one more time: ${prompt.trim()}. If anything you were about to include conflicts with this, leave it out.`
               : "";
 
           const upstream = await geminiImageStream({
             parts: [
               { inlineData: inline },
               {
-                text: `The attached image is a real photo of a room. You are an image editor, not an image generator.
+                text: `${openingConstraint}The attached image is a real photo of a room. You are an image editor, not an image generator.
 
 CRITICAL EDITING INSTRUCTIONS:
 Do NOT generate a new room or reinterpret the space. Your job is to redecorate the EXISTING space shown in the attached photo, editing that exact photo in place. This can include removing or replacing existing furniture and decor with new ${style} pieces — you are not limited to filling empty space.
@@ -57,8 +72,9 @@ STRICT RULES:
 1. Preserve the room's exact walls, windows, flooring, ceiling, ceiling height, ceiling fixtures, and camera angle/perspective 100% as they appear in the input photo. Do not shift, crop, re-frame, or rebuild any part of the room's structure.
 2. Do not change the room's proportions or invent architectural features that aren't in the source photo.
 3. You may remove, replace, or add furniture and decor anywhere in the room to satisfy the style, palette, and user instructions above — just never touch the structural elements from rule 1.
-4. Keep the room's lighting direction and shadows consistent with the original photo; you may shift color temperature and tone as needed to match the requested palette.
-5. Photorealistic, high detail, seamlessly composited into the original photo.`,
+4. If the user's instructions exclude or forbid any specific item or category of furniture/decor, that exclusion is absolute: never include it in the output under any circumstance, even if it would otherwise be a strong fit for the requested style or would help fill an empty area.
+5. Keep the room's lighting direction and shadows consistent with the original photo; you may shift color temperature and tone as needed to match the requested palette.
+6. Photorealistic, high detail, seamlessly composited into the original photo.${closingConstraint}`,
               },
             ],
           });

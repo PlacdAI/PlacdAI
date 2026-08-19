@@ -9,27 +9,45 @@ import {
 } from "@/lib/supabase.server";
 import { dataUrlToInline, geminiJson } from "@/lib/gemini.server";
 
-const Input = z.object({ roomImage: z.string(), style: z.string() });
+const Input = z.object({
+  roomImage: z.string(),
+  style: z.string(),
+  // The same free-text box the user types into (e.g. "don't add any
+  // dressers, wall art is fine") that also feeds room-generation. Must be
+  // threaded through here too — otherwise the picker selects catalog items
+  // purely by style match, with zero awareness of what the user excluded.
+  instructions: z.string().optional(),
+});
 
 export const Route = createFileRoute("/api/pick-products")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { roomImage, style } = Input.parse(await request.json());
+          const { roomImage, style, instructions } = Input.parse(await request.json());
           const catalog = await fetchCatalogForPrompt(style, 40);
           if (catalog.length === 0) {
             return Response.json({ products: [] });
           }
 
           const inline = dataUrlToInline(roomImage);
+          const trimmedInstructions = instructions?.trim();
           const result = await geminiJson<{ productIds: string[] }>({
             systemInstruction:
-              "You are an interior designer. Given a photo of a room and a catalog of furniture, decide which items — if any — would genuinely improve the room in the requested style. Only include a product if it clearly fills a real gap: an empty surface that needs a lamp, a bare wall that needs art, missing seating, etc. Do not pad your selection to reach any particular number. It is completely fine to pick just 1 or 2 items if that's all the room actually needs. Never pick more than 3. Return only the IDs of items you're confident belong in this room.",
+              "You are an interior designer. Given a photo of a room and a catalog of furniture, decide which items — if any — would genuinely improve the room in the requested style. Only include a product if it clearly fills a real gap: an empty surface that needs a lamp, a bare wall that needs art, missing seating, etc. Do not pad your selection to reach any particular number. It is completely fine to pick just 1 or 2 items if that's all the room actually needs. Never pick more than 3. If the user has given specific instructions (e.g. excluding a category of furniture, or requesting particular pieces), those instructions are a hard constraint — never select a product that violates them, even if it would otherwise be a great style match. Return only the IDs of items you're confident belong in this room.",
             parts: [
               { inlineData: inline },
               {
-                text: `Style: ${style}\n\nCatalog (JSON):\n${JSON.stringify(catalog)}\n\nReturn between 1 and 3 product IDs from this catalog — only the ones that genuinely fit.`,
+                text: [
+                  `Style: ${style}`,
+                  trimmedInstructions
+                    ? `User's instructions for this room (must be followed exactly — do not pick any product that conflicts with these, even a well-matched one): ${trimmedInstructions}`
+                    : null,
+                  `Catalog (JSON):\n${JSON.stringify(catalog)}`,
+                  "Return between 1 and 3 product IDs from this catalog — only the ones that genuinely fit and don't conflict with the user's instructions above.",
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
               },
             ],
             schema: {

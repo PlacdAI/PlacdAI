@@ -588,7 +588,11 @@ function Home() {
     const pickPromise = fetch("/api/pick-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomImage, style: effectiveStyle }),
+      body: JSON.stringify({
+        roomImage,
+        style: effectiveStyle,
+        instructions: visionPrompt.trim() || undefined,
+      }),
     })
       .then(async (r) => {
         const j = (await r.json()) as { products?: Product[]; error?: string };
