@@ -282,13 +282,19 @@ function BeforeAfterSlider() {
     <div
       ref={ref}
       onPointerDown={(e) => {
+        e.preventDefault();
         dragging.current = true;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        update(e.clientX);
       }}
-      onPointerMove={(e) => dragging.current && update(e.clientX)}
+      onPointerMove={(e) => {
+        if (!dragging.current) return;
+        e.preventDefault();
+        update(e.clientX);
+      }}
       onPointerUp={() => (dragging.current = false)}
       className="relative aspect-video w-full select-none overflow-hidden rounded-[20px] bg-[#E8E0D8]"
-      style={{ cursor: "ew-resize" }}
+      style={{ cursor: "ew-resize", touchAction: "none" }}
     >
       <img src={IMG.before} alt="Empty room before redesign" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
@@ -362,7 +368,7 @@ function Hero() {
               size="lg"
               className="rounded-full bg-[#1C1C1C] px-5 py-5 text-[13.5px] font-semibold text-white shadow-[0_4px_20px_rgba(28,28,28,0.3)] transition-all hover:-translate-y-0.5 hover:bg-[#2d2d2d] hover:shadow-[0_12px_32px_rgba(28,28,28,0.4)] sm:px-9 sm:py-6 sm:text-[15px]"
             >
-              <Link to="/dashboard">Design Your Room — Free ↗</Link>
+              <Link to="/login">Design Your Room — Free ↗</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-full border-[#E8E0D8] px-5 py-5 text-[13.5px] font-medium text-[#1C1C1C] hover:border-[#CEBBA8] sm:px-7 sm:py-6 sm:text-[15px]">
               <a href="#how-it-works" onClick={(e) => scrollToSection(e, "#how-it-works")}>Watch Demo</a>
@@ -564,7 +570,7 @@ const UNIQUE_FEATURES: { icon: ReactNode; title: string; desc: string }[] = [
       </svg>
     ),
     title: "No subscription, ever",
-    desc: "Buy credits when you need them. $5 gets you 20 designs. No monthly commitment, no auto-renewals. Your first design is always free.",
+    desc: "Buy credits when you need them. $8 gets you 10 designs. No monthly commitment, no auto-renewals. Your first design is always free.",
   },
   {
     icon: (
@@ -667,9 +673,6 @@ function GalleryTile({ src, label, sub, className }: { src: string; label: strin
         <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-white/60">{sub}</p>
         <p className="text-[17px] font-semibold tracking-[-0.01em] text-white">{label}</p>
       </div>
-      <div className="absolute right-4 top-4 hidden rounded-lg border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md group-hover:block">
-        View Style ↗
-      </div>
     </div>
   );
 }
@@ -699,12 +702,6 @@ function Gallery() {
           <GalleryTile src={IMG.midcentury} label="Mid-Century" sub="Warm curves, retro palette" className="h-64 sm:h-auto" />
           <GalleryTile src={IMG.homeoffice} label="Modern Office" sub="Focused, productive spaces" className="h-64 sm:h-auto" />
         </div>
-
-        <div className="mt-10 text-center">
-          <Button variant="outline" className="rounded-full border-[#E8E0D8] px-8 py-6 text-sm font-semibold text-[#1C1C1C] hover:border-[#CEBBA8] hover:text-[#CEBBA8]">
-            Browse All 20+ Styles →
-          </Button>
-        </div>
       </div>
     </section>
   );
@@ -714,34 +711,34 @@ function Gallery() {
 
 const PACKS = [
   {
-    name: "Starter Pack",
-    price: "$5",
-    credits: 20,
-    perCredit: "$0.25",
-    features: ["20 AI room generations", "Real buyable product tags", "Google Visual Search", "Standard resolution"],
-    cta: "Buy 20 Credits",
+    name: "Starter",
+    price: "$8",
+    credits: 10,
+    perCredit: "$0.80",
+    features: ["10 AI room generations", "Real buyable product tags", "Google Visual Search", "Standard resolution"],
+    cta: "Buy 10 Credits",
     hot: false,
     tag: null as string | null,
   },
   {
-    name: "Value Pack",
-    price: "$12",
-    credits: 60,
-    perCredit: "$0.20",
-    features: ["60 AI room generations", "Real buyable product tags", "Google Visual Search", "High-res 4K exports", "Priority processing"],
-    cta: "Buy 60 Credits",
+    name: "Most Popular",
+    price: "$21",
+    credits: 30,
+    perCredit: "$0.70",
+    features: ["30 AI room generations", "Real buyable product tags", "Google Visual Search", "High-res 4K exports", "Priority processing"],
+    cta: "Buy 30 Credits",
     hot: true,
-    tag: "Best Value",
+    tag: "Most Popular",
   },
   {
-    name: "Pro Pack",
-    price: "$20",
-    credits: 120,
-    perCredit: "$0.17",
-    features: ["120 AI room generations", "Real buyable product tags", "Google Visual Search", "High-res 4K exports", "Priority processing", "Commercial license"],
-    cta: "Buy 120 Credits",
+    name: "Best Value",
+    price: "$45",
+    credits: 65,
+    perCredit: "$0.69",
+    features: ["65 AI room generations", "Real buyable product tags", "Google Visual Search", "High-res 4K exports", "Priority processing", "Commercial license"],
+    cta: "Buy 65 Credits",
     hot: false,
-    tag: "Most Credits",
+    tag: "Best Value",
   },
 ];
 
@@ -802,11 +799,12 @@ function Pricing() {
               </div>
 
               <Button
+                asChild
                 className={`w-full rounded-full py-6 text-sm font-bold ${
                   pack.hot ? "bg-[#CEBBA8] text-white hover:-translate-y-0.5 hover:opacity-90" : "border border-[#1C1C1C] bg-transparent text-[#1C1C1C] hover:-translate-y-0.5 hover:bg-transparent hover:opacity-90"
                 }`}
               >
-                {pack.cta}
+                <Link to="/login">{pack.cta}</Link>
               </Button>
             </div>
           ))}
@@ -854,7 +852,7 @@ function FooterCTA() {
             size="lg"
             className="rounded-full bg-[#CEBBA8] px-6 py-5 text-[13.5px] font-bold text-white shadow-[0_4px_20px_rgba(206,187,168,0.4)] transition-all hover:-translate-y-1 hover:bg-[#CEBBA8] hover:shadow-[0_12px_40px_rgba(206,187,168,0.55)] sm:px-10 sm:py-6 sm:text-[15px]"
           >
-            <Link to="/dashboard">
+            <Link to="/login">
               Start for Free — No Card <ArrowRight className="ml-2 inline h-4 w-4" />
             </Link>
           </Button>
