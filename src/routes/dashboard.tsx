@@ -858,7 +858,7 @@ function Home() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-background">
       <Toaster richColors position="top-center" />
 
       {/* ── Top nav ───────────────────────────────────────────
@@ -1088,7 +1088,7 @@ function Home() {
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-x-0 bottom-0 top-[52px] z-20 bg-black/40 md:hidden"
+            className="fixed inset-x-0 bottom-0 top-[calc(52px_+_env(safe-area-inset-top))] z-20 bg-black/40 md:hidden"
           />
         )}
         <div className="relative flex h-full shrink-0">
@@ -1106,7 +1106,7 @@ function Home() {
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            className={`fixed top-[68px] z-30 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-foreground/70 shadow-md transition hover:text-foreground active:scale-90 md:absolute md:top-4 md:z-20 ${
+            className={`fixed top-[calc(68px_+_env(safe-area-inset-top))] z-30 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white text-foreground/70 shadow-md transition hover:text-foreground active:scale-90 md:absolute md:top-4 md:z-20 ${
               sidebarOpen ? "right-3 md:left-0 md:right-auto md:-translate-x-1/2" : "right-3"
             }`}
           >
@@ -1114,7 +1114,7 @@ function Home() {
           </button>
 
           <aside
-            className={`fixed bottom-0 right-0 top-[52px] z-20 flex h-auto w-[88vw] max-w-[440px] flex-col overflow-hidden border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:z-auto md:h-full md:w-[440px] md:translate-x-0 md:shadow-none md:transition-[width] ${
+            className={`fixed bottom-0 right-0 top-[calc(52px_+_env(safe-area-inset-top))] z-20 flex h-auto w-[88vw] max-w-[440px] flex-col overflow-hidden border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:z-auto md:h-full md:w-[440px] md:translate-x-0 md:shadow-none md:transition-[width] ${
               sidebarOpen ? "translate-x-0" : "translate-x-full md:w-0"
             }`}
           >

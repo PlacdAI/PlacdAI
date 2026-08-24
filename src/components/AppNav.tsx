@@ -67,7 +67,7 @@ export function AppNav() {
   const userInitials = fullName.charAt(0).toUpperCase();
 
   return (
-    <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-black/[0.07] bg-white px-3 sm:gap-0 sm:px-5">
+    <header className="flex min-h-[52px] shrink-0 items-center gap-2 border-b border-black/[0.07] bg-white px-3 pt-[env(safe-area-inset-top)] sm:gap-0 sm:px-5">
       {/* Brand */}
       <Link to="/dashboard" className="mr-3 flex shrink-0 items-center gap-2 sm:mr-8">
         <img src={logoMark} alt="" className="h-[26px] w-[26px]" />
