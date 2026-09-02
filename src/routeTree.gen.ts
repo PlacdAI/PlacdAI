@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -28,6 +30,16 @@ import { Route as ApiCreateCheckoutRouteImport } from './routes/api/create-check
 import { Route as ApiConsumeCreditRouteImport } from './routes/api/consume-credit'
 import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -125,6 +137,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/consume-credit': typeof ApiConsumeCreditRoute
   '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
@@ -145,6 +159,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/consume-credit': typeof ApiConsumeCreditRoute
   '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
@@ -166,6 +182,8 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/consume-credit': typeof ApiConsumeCreditRoute
   '/api/create-checkout': typeof ApiCreateCheckoutRoute
   '/api/debug-shop-look': typeof ApiDebugShopLookRoute
@@ -188,6 +206,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/api/consume-credit'
     | '/api/create-checkout'
     | '/api/debug-shop-look'
@@ -208,6 +228,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/api/consume-credit'
     | '/api/create-checkout'
     | '/api/debug-shop-look'
@@ -228,6 +250,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gallery'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/api/consume-credit'
     | '/api/create-checkout'
     | '/api/debug-shop-look'
@@ -249,6 +273,8 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   GalleryRoute: typeof GalleryRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   ApiConsumeCreditRoute: typeof ApiConsumeCreditRoute
   ApiCreateCheckoutRoute: typeof ApiCreateCheckoutRoute
   ApiDebugShopLookRoute: typeof ApiDebugShopLookRoute
@@ -266,6 +292,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -401,6 +441,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   GalleryRoute: GalleryRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   ApiConsumeCreditRoute: ApiConsumeCreditRoute,
   ApiCreateCheckoutRoute: ApiCreateCheckoutRoute,
   ApiDebugShopLookRoute: ApiDebugShopLookRoute,

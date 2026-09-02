@@ -3,9 +3,21 @@
 //
 // Uses the browser Supabase client (src/lib/supabaseClient.ts).
 // After successful auth the user is redirected to `/dashboard`.
+//
+// SIGN-IN METHOD — two options live side by side on purpose:
+//   1. Google Identity Services (GIS) — runs entirely on placdai.com,
+//      so Google's consent screen shows "placdai.com" instead of the
+//      Supabase project URL. Requires Google's own button styling.
+//   2. The original Supabase `signInWithOAuth` redirect flow — always
+//      shows the Supabase URL on Google's screen, but is the simplest,
+//      most bulletproof method and keeps your custom-styled button.
+//
+// Flip USE_GOOGLE_IDENTITY_SERVICES below to switch between them —
+// both code paths are fully implemented, so it's a one-line change
+// either direction, no need to remove or rewrite anything.
 // ─────────────────────────────────────────────────────────────
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Loader2, Sparkles, Clock, Images, Upload, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +40,62 @@ export const Route = createFileRoute("/login")({
   }),
   component: LoginPage,
 });
+
+// ── Sign-in method switch ───────────────────────────────────────
+// true  = Google Identity Services (shows "placdai.com" on Google's
+//         screen; button is Google's own rendered button)
+// false = original redirect flow (shows the Supabase URL; keeps your
+//         custom-styled button exactly as before)
+const USE_GOOGLE_IDENTITY_SERVICES = true;
+
+// Same OAuth client Supabase already uses (from Google Cloud Console).
+// Client IDs are meant to be public/embedded client-side — not a secret.
+const GOOGLE_CLIENT_ID = "414767129413-4gb1psd8ok2j3ufo87i17d68pbgtuc67.apps.googleusercontent.com";
+
+// Minimal ambient typing for the GIS script — it attaches `google` to
+// `window` at runtime; there's no official npm types package for it.
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            nonce?: string;
+            use_fedcm_for_prompt?: boolean;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              type?: "standard" | "icon";
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+              shape?: "rectangular" | "pill" | "circle" | "square";
+              width?: number;
+            }
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
+// Generates a cryptographically random nonce + its SHA-256 hash, as
+// required by Supabase's signInWithIdToken security model: the hashed
+// version goes to Google (bound into the ID token it issues), the raw
+// version goes to Supabase (which re-hashes and compares) — this is
+// what stops a stolen/replayed ID token from being reusable.
+async function generateNonce(): Promise<{ raw: string; hashed: string }> {
+  const raw =
+    crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+  const hashed = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return { raw, hashed };
+}
 
 // How-it-works steps over the sign-in photo — real capability, not a
 // launch-day testimonial you don't have yet. `activeStep` below cycles
@@ -71,6 +139,11 @@ function LoginPage() {
 
   const [busy, setBusy] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const [gisScriptLoaded, setGisScriptLoaded] = useState(false);
+  const [gisTimedOut, setGisTimedOut] = useState(false);
+
+  const gisButtonRef = useRef<HTMLDivElement>(null);
+  const nonceRef = useRef<string>("");
 
   // Already signed in? Go to dashboard.
   useEffect(() => {
@@ -85,6 +158,94 @@ function LoginPage() {
     return () => clearInterval(id);
   }, []);
 
+  // ── GIS: load Google's script once ──────────────────────────
+  useEffect(() => {
+    if (!USE_GOOGLE_IDENTITY_SERVICES) return;
+    if (window.google) {
+      setGisScriptLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGisScriptLoaded(true);
+    script.onerror = () => toast.error("Couldn't load Google Sign-In. Check your connection and refresh.");
+    document.head.appendChild(script);
+    // Intentionally not removing the script on unmount — Google's own
+    // guidance is to load it once per page lifetime; removing/re-adding
+    // on fast route changes can cause duplicate-init warnings.
+  }, []);
+
+  // ── GIS fallback: if Google's script hasn't loaded within 10s
+  // (ad blocker, strict privacy extension, etc.), silently fall back
+  // to the original custom-styled button so the visitor isn't stuck
+  // looking at a spinner forever with no way to sign in. ──────────
+  useEffect(() => {
+    if (!USE_GOOGLE_IDENTITY_SERVICES) return;
+    const timer = setTimeout(() => {
+      setGisScriptLoaded((loaded) => {
+        if (!loaded) setGisTimedOut(true);
+        return loaded;
+      });
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ── GIS: handle the ID token Google hands back ──────────────
+  const handleCredentialResponse = async (response: { credential: string }) => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: response.credential,
+        nonce: nonceRef.current,
+      });
+      if (error) throw error;
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── GIS: once the script is loaded and the button's mount point
+  // exists, initialize + render Google's own button into it ──────
+  useEffect(() => {
+    if (!USE_GOOGLE_IDENTITY_SERVICES) return;
+    if (!gisScriptLoaded || !gisButtonRef.current || !window.google) return;
+
+    let cancelled = false;
+    (async () => {
+      const { raw, hashed } = await generateNonce();
+      if (cancelled) return;
+      nonceRef.current = raw;
+
+      window.google!.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+        nonce: hashed,
+        use_fedcm_for_prompt: true,
+      });
+
+      window.google!.accounts.id.renderButton(gisButtonRef.current!, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: gisButtonRef.current!.offsetWidth || 352,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gisScriptLoaded]);
+
+  // ── Original redirect flow (kept intact as the fallback) ────
   const handleGoogleLogin = async () => {
     setBusy(true);
     try {
@@ -175,22 +336,41 @@ function LoginPage() {
               Sign in to continue designing your space with AI.
             </p>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-8 h-12 w-full justify-center gap-3 text-base font-medium shadow-sm transition-all hover:bg-muted/50"
-              onClick={handleGoogleLogin}
-              disabled={busy}
-            >
-              {busy ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <GoogleIcon className="h-5 w-5" />
-                  Continue with Google
-                </>
-              )}
-            </Button>
+            {USE_GOOGLE_IDENTITY_SERVICES && !gisTimedOut ? (
+              <div className="mt-8">
+                {/* Google renders its own button into this div once its
+                    script loads. Nothing to style here — Google controls
+                    this element's contents directly. */}
+                <div ref={gisButtonRef} className="flex w-full justify-center" />
+                {!gisScriptLoaded && (
+                  <div className="flex h-12 w-full items-center justify-center rounded-md border border-input">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {busy && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Signing in…
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-8 h-12 w-full justify-center gap-3 text-base font-medium shadow-sm transition-all hover:bg-muted/50"
+                onClick={handleGoogleLogin}
+                disabled={busy}
+              >
+                {busy ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <GoogleIcon className="h-5 w-5" />
+                    Continue with Google
+                  </>
+                )}
+              </Button>
+            )}
 
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Only Google sign-in supported

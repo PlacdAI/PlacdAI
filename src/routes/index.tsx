@@ -864,11 +864,21 @@ function FooterCTA() {
         <div className="flex flex-wrap items-center justify-between gap-6 border-t border-white/[0.07] pt-11">
           <img src={logoImg} alt="PlacdAI" className="h-[26px] object-contain opacity-45 brightness-0 invert" />
           <div className="flex gap-8">
-            {["Privacy", "Terms", "Contact", "API"].map((l) => (
-              <a key={l} href="#" className="text-[13px] text-white/30 transition-colors hover:text-white/65">
-                {l}
-              </a>
-            ))}
+            {[
+              { label: "Privacy", to: "/privacy" },
+              { label: "Terms", to: "/terms" },
+              { label: "Contact", to: "#" },
+            ].map((l) =>
+              l.to === "#" ? (
+                <a key={l.label} href="#" className="text-[13px] text-white/30 transition-colors hover:text-white/65">
+                  {l.label}
+                </a>
+              ) : (
+                <Link key={l.label} to={l.to} className="text-[13px] text-white/30 transition-colors hover:text-white/65">
+                  {l.label}
+                </Link>
+              )
+            )}
           </div>
           <p className="text-xs text-white/20">© {new Date().getFullYear()} PlacdAI</p>
         </div>
