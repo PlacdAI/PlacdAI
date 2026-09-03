@@ -11,6 +11,7 @@ import { AppNav } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
 import { STYLES, type Product } from "@/lib/types";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
+import { GenerationLoadingOverlay } from "@/components/GenerationLoadingOverlay";
 import heroImage from "@/assets/room-hero.jpg";
 import logoMark from "@/assets/trimmy-PlacdAI-logo-official.png";
 import { type DetectedItem, matchDetectedItem } from "@/lib/furnitureMatching";
@@ -874,6 +875,7 @@ function Home() {
             Full-bleed, edge-to-edge. No page scroll — this pane
             only ever grows to fill the space next to the sidebar. */}
         <div className="relative min-w-0 flex-1 bg-neutral-900">
+          <GenerationLoadingOverlay active={busy} />
           <input
             ref={fileRef}
             type="file"
@@ -1340,6 +1342,20 @@ function Home() {
                   <Wand2 className="mr-2 h-4 w-4" />
                   {busy ? "Working…" : "Generate Design"}
                 </Button>
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                  PlacdAI can make mistakes. Contact{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText("placdaisupport@gmail.com");
+                      toast.success("Email copied to clipboard");
+                    }}
+                    className="underline hover:text-foreground"
+                  >
+                    placdaisupport@gmail.com
+                  </button>{" "}
+                  for help.
+                </p>
               </div>
             </>
           )}
