@@ -21,8 +21,7 @@ dist-ssr
 .env.local
 .env.*.local
 
-# Lovable scaffold metadata — not needed once hand-editing in VSCode
-.lovable/
+
 
 # Wrangler / Cloudflare
 .wrangler/
