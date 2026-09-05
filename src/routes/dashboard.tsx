@@ -1116,8 +1116,8 @@ function Home() {
           </button>
 
           <aside
-            className={`fixed bottom-0 right-0 top-[calc(52px_+_env(safe-area-inset-top))] z-20 flex h-auto w-[88vw] max-w-[440px] flex-col overflow-hidden border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:z-auto md:h-full md:w-[440px] md:translate-x-0 md:shadow-none md:transition-[width] ${
-              sidebarOpen ? "translate-x-0" : "translate-x-full md:w-0"
+            className={`fixed bottom-0 right-0 top-[calc(52px_+_env(safe-area-inset-top))] z-20 flex h-auto w-[88vw] max-w-[440px] flex-col overflow-hidden border-l border-border bg-card shadow-2xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:z-auto md:h-full md:translate-x-0 md:shadow-none md:transition-[width] ${
+              sidebarOpen ? "translate-x-0 md:w-[440px]" : "translate-x-full md:w-0"
             }`}
           >
           <div className="flex shrink-0 items-center border-b border-border">
