@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "../lib/auth";
 import { AuthGateProvider } from "../components/auth-gate";
 import { CreditsGateProvider } from "../components/credits-gate";
-import placdaiFavicon from "../assets/trimmy-PlacdAI-logo-official.png";
 
 function NotFoundComponent() {
   return (
@@ -90,10 +89,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      // Imported (not a public/ path) so Vite bundles + hashes it and
-      // resolves the real asset URL — swapping the file in src/assets
-      // is now enough, no need to also touch anything in public/.
-      { rel: "icon", href: placdaiFavicon, type: "image/png" },
+      // IMPORTANT: this points at a file in public/ (not src/assets), so
+      // the URL is always exactly "/favicon.png" — it never changes on
+      // rebuild. Google's favicon guidelines explicitly require a STABLE
+      // url; a hashed src/assets import (e.g. /assets/foo-C1AvCtR1.png)
+      // changes on every edit, which looks like a brand new resource to
+      // Google each time and resets its favicon cache. Do not switch
+      // this back to an imported asset, and do not rename this file —
+      // if you ever need to change the logo image itself, overwrite
+      // public/favicon.png in place and keep this exact path.
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
